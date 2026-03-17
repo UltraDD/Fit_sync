@@ -37,6 +37,7 @@ struct WorkoutFinishView: View {
         .navigationTitle("训练总结")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .tabBar)
         .onAppear {
             journal = workoutState.journalText
         }
