@@ -1,6 +1,17 @@
 import Foundation
 import Observation
 
+struct WorkoutDraft: Codable {
+    let active: Bool
+    let exercises: [LiveExercise]
+    let startTime: String?
+    let startTimestamp: Date?
+    let warmupItems: [LiveChecklistItem]
+    let cooldownItems: [LiveChecklistItem]
+    let journalText: String
+    let planDate: String?
+}
+
 struct LiveSet: Codable {
     var reps: Int
     var weight_kg: Double
@@ -107,6 +118,7 @@ final class WorkoutState {
         }
 
         active = true
+        saveDraft()
     }
 
     func tick() {
@@ -130,6 +142,7 @@ final class WorkoutState {
         exercises[idx].sets[setIndex].rpe = rpe
         exercises[idx].sets[setIndex].completed = true
         exercises[idx].sets[setIndex].completed_at = ISO8601DateFormatter().string(from: Date())
+        saveDraft()
     }
 
     func addSet(to exerciseId: String) {
@@ -269,6 +282,46 @@ final class WorkoutState {
         warmupItems = []
         cooldownItems = []
         journalText = ""
+        clearDraft()
+    }
+
+    private static let draftKey = "workout_draft"
+
+    func saveDraft() {
+        let draft = WorkoutDraft(
+            active: active,
+            exercises: exercises,
+            startTime: startTime,
+            startTimestamp: startTimestamp,
+            warmupItems: warmupItems,
+            cooldownItems: cooldownItems,
+            journalText: journalText,
+            planDate: plan?.date
+        )
+        if let data = try? JSONEncoder().encode(draft) {
+            UserDefaults.standard.set(data, forKey: Self.draftKey)
+        }
+    }
+
+    func loadDraft() -> Bool {
+        guard let data = UserDefaults.standard.data(forKey: Self.draftKey),
+              let draft = try? JSONDecoder().decode(WorkoutDraft.self, from: data),
+              draft.active else { return false }
+        active = draft.active
+        exercises = draft.exercises
+        startTime = draft.startTime
+        startTimestamp = draft.startTimestamp
+        warmupItems = draft.warmupItems
+        cooldownItems = draft.cooldownItems
+        journalText = draft.journalText
+        if let start = startTimestamp {
+            elapsedSeconds = Int(Date().timeIntervalSince(start))
+        }
+        return true
+    }
+
+    func clearDraft() {
+        UserDefaults.standard.removeObject(forKey: Self.draftKey)
     }
 
     var elapsedFormatted: String {

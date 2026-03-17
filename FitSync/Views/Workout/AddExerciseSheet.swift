@@ -22,6 +22,10 @@ struct AddExerciseSheet: View {
         cardioKeywords.contains { name.contains($0) } || cardioExercises.contains(name)
     }
 
+    private var recentExercises: [String] {
+        WorkoutStore.shared.recentExerciseNames()
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -37,6 +41,22 @@ struct AddExerciseSheet: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(searchText.isEmpty)
+                    }
+
+                    if !recentExercises.isEmpty {
+                        Text("最近使用").font(.headline)
+                        FlowLayout(spacing: 8) {
+                            ForEach(recentExercises, id: \.self) { name in
+                                Button(name) {
+                                    let type = isCardio(name) ? "cardio" : "strength"
+                                    workoutState.addExercise(name: name, type: type)
+                                    dismiss()
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .tint(.green)
+                            }
+                        }
                     }
 
                     Text("力量训练").font(.headline)

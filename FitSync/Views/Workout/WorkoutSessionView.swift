@@ -12,6 +12,14 @@ struct WorkoutSessionView: View {
 
     var body: some View {
         List {
+            if let notes = workoutState.plan?.coach_notes, !notes.isEmpty {
+                Section {
+                    Text(notes).font(.subheadline).foregroundStyle(.secondary)
+                } header: {
+                    Label("教练备注", systemImage: "note.text")
+                }
+            }
+
             if !workoutState.warmupItems.isEmpty {
                 Section("热身") {
                     ForEach(Array(workoutState.warmupItems.enumerated()), id: \.offset) { index, item in
@@ -41,6 +49,10 @@ struct WorkoutSessionView: View {
                     } label: {
                         exerciseRow(exercise)
                     }
+                }
+                .onMove { from, to in
+                    guard let fromIdx = from.first else { return }
+                    workoutState.moveExercise(from: fromIdx, to: to)
                 }
             }
 
@@ -122,7 +134,17 @@ struct WorkoutSessionView: View {
         .onChange(of: workoutState.active) { _, newValue in
             if !newValue { dismiss() }
         }
-        .onAppear { startTimer() }
+        .onAppear {
+            startTimer()
+            if workoutState.exercises.isEmpty {
+                showAddExercise = true
+            }
+        }
+        .onChange(of: workoutState.elapsedSeconds) { _, newValue in
+            if newValue == 10800 {
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            }
+        }
         .onDisappear { timer?.invalidate() }
     }
 

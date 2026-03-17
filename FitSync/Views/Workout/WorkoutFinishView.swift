@@ -28,6 +28,7 @@ struct WorkoutFinishView: View {
                     if let data = try? JSONEncoder().encode(result), let str = String(data: data, encoding: .utf8) {
                         UIPasteboard.general.string = str
                     }
+                    WorkoutStore.shared.save(result)
                 }
                 .foregroundStyle(.secondary)
             }
@@ -108,6 +109,7 @@ struct WorkoutFinishView: View {
             case .idle:
                 Button {
                     let result = workoutState.buildResult(feeling: feeling, journal: journal, sleepHours: sleepHours)
+                    WorkoutStore.shared.save(result)
                     Task { await homeVM.uploadResultAndSyncHealth(result: result) }
                 } label: {
                     Label("上传并同步", systemImage: "icloud.and.arrow.up")
@@ -132,6 +134,8 @@ struct WorkoutFinishView: View {
                     Text("健康数据已同步（\(healthRecords) 条）").font(.caption).foregroundStyle(.green)
                 }
                 Button("完成") {
+                    let result = workoutState.buildResult(feeling: feeling, journal: journal, sleepHours: sleepHours)
+                    WorkoutStore.shared.save(result)
                     workoutState.reset()
                     dismiss()
                 }

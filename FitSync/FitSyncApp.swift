@@ -26,6 +26,7 @@ struct FitSyncApp: App {
                 if homeVM == nil {
                     homeVM = HomeViewModel(syncViewModel: syncVM)
                 }
+                workoutState.loadDraft()
                 requestHealthKit()
             }
         }

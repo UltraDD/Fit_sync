@@ -27,6 +27,21 @@ struct WorkoutHomeView: View {
                         planCard
                     }
 
+                    if let plan = homeVM.plan, let notes = plan.coach_notes, !notes.isEmpty, !workoutState.active {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("教练备注", systemImage: "note.text")
+                                .font(.caption).foregroundStyle(.secondary)
+                            Text(notes).font(.subheadline)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    }
+
+                    if let last = WorkoutStore.shared.lastWorkout(), !workoutState.active {
+                        lastWorkoutCard(last)
+                    }
+
                     quickActions
 
                     NavigationLink("全部历史记录 →", destination: WorkoutHistoryView())
@@ -145,6 +160,22 @@ struct WorkoutHomeView: View {
                 .padding(.vertical, 32)
             }
         }
+    }
+
+    private func lastWorkoutCard(_ w: ResultJSON) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("上次训练").font(.caption).foregroundStyle(.secondary)
+            HStack(spacing: 16) {
+                Text(w.date).font(.subheadline.bold())
+                Label("\(w.exercises.count) 动作", systemImage: "figure.strengthtraining.traditional")
+                    .font(.caption)
+                Label("\(w.duration_minutes) 分钟", systemImage: "clock")
+                    .font(.caption)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private var quickActions: some View {
