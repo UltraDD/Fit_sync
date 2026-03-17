@@ -146,6 +146,7 @@ struct WorkoutSessionView: View {
             }
         }
         .onDisappear { timer?.invalidate() }
+        .toolbar(.hidden, for: .tabBar)
     }
 
     private func exerciseRow(_ exercise: LiveExercise) -> some View {
