@@ -144,7 +144,7 @@ final class HealthKitService {
                 endDate: workout.endDate,
                 activityType: WorkoutSample.activityName(for: workout.workoutActivityType),
                 duration: workout.duration,
-                totalEnergyBurned: workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()),
+                totalEnergyBurned: workout.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie()),
                 totalDistance: workout.totalDistance?.doubleValue(for: .meter()),
                 avgHeartRate: hrStats?.averageQuantity()?.doubleValue(for: bpmUnit),
                 maxHeartRate: hrStats?.maximumQuantity()?.doubleValue(for: bpmUnit)
