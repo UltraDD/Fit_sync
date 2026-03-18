@@ -9,8 +9,8 @@ enum FLColor {
     static let cardHL     = Color.white.opacity(0.08) // highlight card
     static let borderHL   = Color.white.opacity(0.20)
 
-    static let green      = Color(red: 0.29, green: 0.87, blue: 0.50) // green-400 #4ade80
-    static let greenDark  = Color(red: 0.13, green: 0.77, blue: 0.37) // green-500 #22c55e
+    static let green      = Color(red: 0.40, green: 0.78, blue: 0.56) // muted green
+    static let greenDark  = Color(red: 0.30, green: 0.68, blue: 0.46) // muted green dark
     static let amber      = Color(red: 0.98, green: 0.75, blue: 0.14) // amber-400 #fbbf24
     static let amberLight = Color(red: 0.99, green: 0.83, blue: 0.30) // amber-300 #fcd34d
     static let sky        = Color(red: 0.22, green: 0.74, blue: 0.97) // sky-400 #38bdf8
@@ -59,7 +59,7 @@ extension View {
     }
 }
 
-// MARK: - Green Gradient Button Style
+// MARK: - Liquid Glass Button Styles (iOS 26+)
 
 struct GreenButtonStyle: ButtonStyle {
     var fullWidth: Bool = true
@@ -67,21 +67,14 @@ struct GreenButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
-            .foregroundStyle(.black)
+            .foregroundStyle(.white)
             .frame(maxWidth: fullWidth ? .infinity : nil)
             .padding(.horizontal, fullWidth ? 0 : 20)
             .frame(minHeight: 56)
-            .background(
-                LinearGradient(
-                    colors: [FLColor.green, FLColor.greenDark],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+            .glassEffect(
+                .regular.interactive().tint(FLColor.green),
+                in: .rect(cornerRadius: 16)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: FLColor.greenDark.opacity(0.25), radius: 8, y: 4)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
@@ -95,14 +88,10 @@ struct SecondaryButtonStyle: ButtonStyle {
             .frame(maxWidth: fullWidth ? .infinity : nil)
             .padding(.horizontal, fullWidth ? 0 : 20)
             .frame(minHeight: 56)
-            .background(Color.white.opacity(0.10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(FLColor.cardBorder, lineWidth: 1)
+            .glassEffect(
+                .regular.interactive(),
+                in: .rect(cornerRadius: 16)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
@@ -113,17 +102,10 @@ struct DangerButtonStyle: ButtonStyle {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .frame(minHeight: 56)
-            .background(
-                LinearGradient(
-                    colors: [FLColor.red, Color(red: 0.94, green: 0.27, blue: 0.27)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+            .glassEffect(
+                .regular.interactive().tint(FLColor.red),
+                in: .rect(cornerRadius: 16)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: FLColor.red.opacity(0.25), radius: 8, y: 4)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
