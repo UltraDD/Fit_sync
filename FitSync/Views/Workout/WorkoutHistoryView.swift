@@ -97,10 +97,42 @@ struct WorkoutHistoryView: View {
 
     // MARK: - History List
 
+    private var groupedHistory: [(month: String, workouts: [ResultJSON])] {
+        let grouped = Dictionary(grouping: history) { w in
+            String(w.date.prefix(7))
+        }
+        return grouped.sorted { $0.key > $1.key }.map { (month: $0.key, workouts: $0.value) }
+    }
+
+    private func monthLabel(_ ym: String) -> String {
+        let parts = ym.split(separator: "-")
+        guard parts.count == 2, let y = Int(parts[0]), let m = Int(parts[1]) else { return ym }
+        let currentYear = Calendar.current.component(.year, from: Date())
+        if y == currentYear {
+            return "\(m) 月"
+        }
+        return "\(y) 年 \(m) 月"
+    }
+
     private var historyList: some View {
-        VStack(spacing: 10) {
-            ForEach(history, id: \.uniqueId) { workout in
-                workoutCard(workout)
+        VStack(spacing: 20) {
+            ForEach(groupedHistory, id: \.month) { group in
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text(monthLabel(group.month))
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(FLColor.text40)
+                        Spacer()
+                        Text("\(group.workouts.count) 次")
+                            .font(.caption)
+                            .foregroundStyle(FLColor.text30)
+                    }
+                    .padding(.horizontal, 4)
+
+                    ForEach(group.workouts, id: \.uniqueId) { workout in
+                        workoutCard(workout)
+                    }
+                }
             }
         }
     }
@@ -149,7 +181,8 @@ struct WorkoutHistoryView: View {
                             Text(ex.name).font(.subheadline).foregroundStyle(.white)
                             Spacer()
                             if ex.type == "strength", let sets = ex.sets, !sets.isEmpty {
-                                Text("\(sets.count)组 · 最大\(String(format: "%.1f", sets.map(\.weight_kg).max() ?? 0))kg")
+                                let maxKg = sets.map(\.weight_kg).max() ?? 0
+                                Text("\(sets.count)组 · 最大\(maxKg.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", maxKg) : String(format: "%.1f", maxKg))kg")
                                     .font(.caption).foregroundStyle(FLColor.text40).monospacedDigit()
                             } else if let cardio = ex.cardio_data {
                                 Text("\(Int(cardio.duration_minutes))分钟")
@@ -170,11 +203,13 @@ struct WorkoutHistoryView: View {
                         Button("删除此记录") { deletingDate = workout.uniqueId }
                             .font(.caption).foregroundStyle(FLColor.red.opacity(0.7))
                     } else {
-                        HStack(spacing: 12) {
-                            Button("确认删除") { deleteWorkout(workout) }
-                                .buttonStyle(DangerButtonStyle())
-                            Button("取消") { deletingDate = nil }
-                                .buttonStyle(SecondaryButtonStyle())
+                        GlassEffectContainer(spacing: 20) {
+                            HStack(spacing: 12) {
+                                Button("确认删除") { deleteWorkout(workout) }
+                                    .buttonStyle(DangerButtonStyle())
+                                Button("取消") { deletingDate = nil }
+                                    .buttonStyle(SecondaryButtonStyle())
+                            }
                         }
                     }
                 }

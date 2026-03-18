@@ -16,6 +16,7 @@ struct WorkoutSessionView: View {
 
     @State private var confirmEnd = false
     @State private var confirmReady = false
+    @State private var confirmProgress: CGFloat = 0
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -295,7 +296,7 @@ struct WorkoutSessionView: View {
                         Text("\(completedCount)/\(totalCount) 组")
                             .font(.caption).foregroundStyle(FLColor.text40)
                         if maxW > 0 {
-                            Text("最大 \(String(format: "%.1f", maxW))kg")
+                            Text("最大 \(maxW.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", maxW) : String(format: "%.1f", maxW))kg")
                                 .font(.caption).foregroundStyle(FLColor.text40)
                         }
                     } else {
@@ -349,6 +350,7 @@ struct WorkoutSessionView: View {
     // MARK: - Bottom Bar
 
     private var bottomBar: some View {
+        GlassEffectContainer(spacing: 20) {
         HStack(spacing: 12) {
             Button {
                 showJournal.toggle()
@@ -357,12 +359,17 @@ struct WorkoutSessionView: View {
                     .font(.title3)
                     .foregroundStyle(FLColor.text60)
                     .frame(width: 44, height: 44)
+                    .glassEffect(.regular.interactive(), in: .circle)
             }
 
             if !confirmEnd {
                 Button {
                     confirmEnd = true
                     confirmReady = false
+                    confirmProgress = 0
+                    withAnimation(.linear(duration: 2)) {
+                        confirmProgress = 1
+                    }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                         confirmReady = true
                     }
@@ -372,14 +379,30 @@ struct WorkoutSessionView: View {
                 .buttonStyle(SecondaryButtonStyle())
             } else {
                 Button {
-                    guard confirmReady else { return }
-                    handleEndWorkout()
+                    if confirmReady {
+                        handleEndWorkout()
+                    } else {
+                        confirmEnd = false
+                        confirmProgress = 0
+                    }
                 } label: {
-                    Text(confirmReady ? "确认结束训练" : "等待确认（2s）")
+                    HStack(spacing: 10) {
+                        if !confirmReady {
+                            ZStack {
+                                Circle()
+                                    .stroke(Color.white.opacity(0.15), lineWidth: 2.5)
+                                    .frame(width: 20, height: 20)
+                                Circle()
+                                    .trim(from: 0, to: confirmProgress)
+                                    .stroke(Color.white, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                                    .frame(width: 20, height: 20)
+                                    .rotationEffect(.degrees(-90))
+                            }
+                        }
+                        Text(confirmReady ? "确认结束训练" : "取消")
+                    }
                 }
                 .buttonStyle(DangerButtonStyle())
-                .disabled(!confirmReady)
-                .opacity(confirmReady ? 1 : 0.6)
             }
 
             Button {
@@ -388,17 +411,14 @@ struct WorkoutSessionView: View {
             } label: {
                 Image(systemName: "plus")
                     .font(.title2.bold())
-                    .foregroundStyle(.black)
+                    .foregroundStyle(.white)
                     .frame(width: 56, height: 56)
-                    .background(
-                        LinearGradient(
-                            colors: [FLColor.green, FLColor.greenDark],
-                            startPoint: .top, endPoint: .bottom
-                        )
+                    .glassEffect(
+                        .regular.interactive().tint(FLColor.green),
+                        in: .rect(cornerRadius: 16)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: FLColor.greenDark.opacity(0.25), radius: 8, y: 4)
             }
+        }
         }
         .padding(.horizontal, 20)
         .padding(.top, 12)

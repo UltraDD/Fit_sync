@@ -75,19 +75,14 @@ struct WorkoutHomeView: View {
                     .font(.system(size: 16))
                     .foregroundStyle(FLColor.text50)
                     .frame(width: 40, height: 40)
-                    .background(Color.white.opacity(0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .strokeBorder(FLColor.cardBorder, lineWidth: 1)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .glassEffect(.regular, in: .rect(cornerRadius: 16))
             }
 
             Spacer()
 
-            Text("F I T L O G")
+            Text("FITLOG")
                 .font(.title3.bold())
-                .tracking(2)
+                .tracking(6)
                 .foregroundStyle(.white)
 
             Spacer()
@@ -131,18 +126,20 @@ struct WorkoutHomeView: View {
             Text("\(workoutState.plan?.target_muscles.joined(separator: " + ") ?? "自由训练") · \(workoutState.exercises.count) 个动作 · \(workoutState.elapsedFormatted)")
                 .font(.subheadline).foregroundStyle(FLColor.text50)
 
-            HStack(spacing: 12) {
-                Button("继续训练") {
-                    navigateToSession = true
-                }
-                .buttonStyle(GreenButtonStyle(fullWidth: false))
-                .frame(maxWidth: .infinity)
+            GlassEffectContainer(spacing: 20) {
+                HStack(spacing: 12) {
+                    Button("继续训练") {
+                        navigateToSession = true
+                    }
+                    .buttonStyle(GreenButtonStyle(fullWidth: false))
+                    .frame(maxWidth: .infinity)
 
-                Button("放弃") {
-                    workoutState.reset()
+                    Button("放弃") {
+                        workoutState.reset()
+                    }
+                    .buttonStyle(SecondaryButtonStyle(fullWidth: false))
+                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(SecondaryButtonStyle(fullWidth: false))
-                .frame(maxWidth: .infinity)
             }
         }
         .glassCard(highlight: true)
@@ -157,19 +154,21 @@ struct WorkoutHomeView: View {
             Text("\(info.muscles) · \(info.exerciseCount) 个动作 · 已用时 \(formatElapsed(info.elapsed))")
                 .font(.subheadline).foregroundStyle(FLColor.text50)
 
-            HStack(spacing: 12) {
-                Button("恢复训练") {
-                    workoutState.loadDraft()
-                    navigateToSession = true
-                }
-                .buttonStyle(GreenButtonStyle(fullWidth: false))
-                .frame(maxWidth: .infinity)
+            GlassEffectContainer(spacing: 20) {
+                HStack(spacing: 12) {
+                    Button("恢复训练") {
+                        workoutState.loadDraft()
+                        navigateToSession = true
+                    }
+                    .buttonStyle(GreenButtonStyle(fullWidth: false))
+                    .frame(maxWidth: .infinity)
 
-                Button("放弃") {
-                    workoutState.clearDraft()
+                    Button("放弃") {
+                        workoutState.clearDraft()
+                    }
+                    .buttonStyle(SecondaryButtonStyle(fullWidth: false))
+                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(SecondaryButtonStyle(fullWidth: false))
-                .frame(maxWidth: .infinity)
             }
         }
         .glassCard()
@@ -220,20 +219,47 @@ struct WorkoutHomeView: View {
                 }
                 .glassCard(highlight: !homeVM.planCompleted)
             } else {
-                VStack(spacing: 10) {
-                    Text("暂无新计划")
-                        .font(.subheadline)
-                        .foregroundStyle(FLColor.text40)
-                    if let sync = homeVM.lastSync {
-                        Text("上次同步 \(sync)")
-                            .font(.caption)
+                VStack(spacing: 16) {
+                    Image(systemName: "figure.strengthtraining.traditional")
+                        .font(.system(size: 36))
+                        .foregroundStyle(FLColor.text20)
+
+                    Text("暂无训练计划")
+                        .font(.headline)
+                        .foregroundStyle(FLColor.text50)
+
+                    if homeVM.isConfigured {
+                        if let sync = homeVM.lastSync {
+                            Text("上次同步 \(sync)")
+                                .font(.caption)
+                                .foregroundStyle(FLColor.text30)
+                        }
+                        Button("刷新") { Task { await homeVM.fetchPlan() } }
+                            .buttonStyle(SecondaryButtonStyle(fullWidth: false))
+                    } else {
+                        Text("配置 GitHub 后可自动同步 AI 生成的计划")
+                            .font(.subheadline)
                             .foregroundStyle(FLColor.text30)
-                    }
-                    Button("刷新") { Task { await homeVM.fetchPlan() } }
+                            .multilineTextAlignment(.center)
+
+                        NavigationLink {
+                            SettingsView()
+                        } label: {
+                            Label("前往设置", systemImage: "gearshape")
+                        }
                         .buttonStyle(SecondaryButtonStyle(fullWidth: false))
+                    }
+
+                    Button {
+                        workoutState.startWorkout(plan: nil)
+                        navigateToSession = true
+                    } label: {
+                        Text("直接开始自由训练 →")
+                    }
+                    .buttonStyle(GreenButtonStyle())
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 32)
+                .padding(.vertical, 24)
             }
         }
     }
@@ -289,19 +315,21 @@ struct WorkoutHomeView: View {
     // MARK: - Quick Actions
 
     private var quickActions: some View {
-        HStack(spacing: 12) {
-            Button {
-                workoutState.startWorkout(plan: nil)
-                navigateToSession = true
-            } label: {
-                Label("自由训练", systemImage: "figure.strengthtraining.traditional")
-            }
-            .buttonStyle(SecondaryButtonStyle())
+        GlassEffectContainer(spacing: 20) {
+            HStack(spacing: 12) {
+                Button {
+                    workoutState.startWorkout(plan: nil)
+                    navigateToSession = true
+                } label: {
+                    Label("自由训练", systemImage: "figure.strengthtraining.traditional")
+                }
+                .buttonStyle(SecondaryButtonStyle())
 
-            Button { showImportSheet = true } label: {
-                Label("导入计划", systemImage: "doc.badge.plus")
+                Button { showImportSheet = true } label: {
+                    Label("导入计划", systemImage: "doc.badge.plus")
+                }
+                .buttonStyle(SecondaryButtonStyle())
             }
-            .buttonStyle(SecondaryButtonStyle())
         }
     }
 

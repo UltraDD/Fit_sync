@@ -21,6 +21,14 @@ struct ExerciseDetailView: View {
     @State private var cardioDistance: Double = 0
     @State private var cardioSaved = false
 
+    @State private var editingWeight = false
+    @State private var weightText = ""
+    @State private var editingReps = false
+    @State private var repsText = ""
+    @State private var editingCardioField: String?
+    @State private var cardioFieldText = ""
+    @FocusState private var manualInputFocused: Bool
+
     @Environment(\.dismiss) private var dismiss
 
     enum InputPhase { case idle, repsInput, rpeSelect }
@@ -48,7 +56,7 @@ struct ExerciseDetailView: View {
                         VStack(spacing: 2) {
                             Text(exercise.name).font(.headline)
                             if exercise.planned && exercise.type == "strength" {
-                                Text("\(exercise.targetSets)×\(exercise.targetReps) @ \(String(format: "%.1f", exercise.targetWeight))kg")
+                                Text("\(exercise.targetSets)×\(exercise.targetReps) @ \(formatWeight(exercise.targetWeight))kg")
                                     .font(.caption)
                                     .foregroundStyle(FLColor.text40)
                             }
@@ -80,7 +88,7 @@ struct ExerciseDetailView: View {
                         navigateToNext()
                     }
                 }
-                .onAppear { initializeState(exercise) }
+                .onAppear { initializeInputs(exercise) }
         } else {
             ContentUnavailableView("动作未找到", systemImage: "exclamationmark.triangle")
         }
@@ -250,7 +258,7 @@ struct ExerciseDetailView: View {
                 Text("第 \(index + 1) 组")
                     .font(.subheadline).foregroundStyle(FLColor.text40)
                 Spacer()
-                Text("\(set.reps)次 × \(String(format: "%.1f", set.weight_kg))kg")
+                Text("\(set.reps)次 × \(formatWeight(set.weight_kg))kg")
                     .font(.subheadline).monospacedDigit()
                 if let rpe = set.rpe {
                     Text("RPE \(String(format: "%.0f", rpe))")
@@ -271,7 +279,7 @@ struct ExerciseDetailView: View {
                 .font(.headline)
 
             if exercise.planned {
-                Text("目标：\(String(format: "%.1f", exercise.targetWeight))kg × \(exercise.targetReps)")
+                Text("目标：\(formatWeight(exercise.targetWeight))kg × \(exercise.targetReps)")
                     .font(.subheadline).foregroundStyle(FLColor.text40)
             }
 
@@ -296,17 +304,37 @@ struct ExerciseDetailView: View {
 
             HStack(spacing: 20) {
                 stepperButton(systemName: "minus", size: 56) {
-                    currentWeight = max(0, currentWeight - 2.5)
+                    currentWeight = max(0, currentWeight - 1)
                 }
                 VStack(spacing: 2) {
-                    Text(String(format: "%.1f", currentWeight))
-                        .font(.system(size: 36, weight: .bold))
-                        .monospacedDigit()
+                    if editingWeight {
+                        TextField("", text: $weightText)
+                            .keyboardType(.decimalPad)
+                            .font(.system(size: 36, weight: .bold))
+                            .monospacedDigit()
+                            .multilineTextAlignment(.center)
+                            .focused($manualInputFocused)
+                            .onSubmit { commitWeightEdit() }
+                            .onChange(of: manualInputFocused) { _, focused in
+                                if !focused { commitWeightEdit() }
+                            }
+                    } else {
+                        Text(String(format: "%.0f", currentWeight))
+                            .font(.system(size: 36, weight: .bold))
+                            .monospacedDigit()
+                            .onTapGesture {
+                                weightText = String(format: "%.0f", currentWeight)
+                                editingWeight = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    manualInputFocused = true
+                                }
+                            }
+                    }
                     Text("kg").font(.title3).foregroundStyle(FLColor.text50)
                 }
                 .frame(minWidth: 100)
                 stepperButton(systemName: "plus", size: 56) {
-                    currentWeight += 2.5
+                    currentWeight += 1
                 }
             }
 
@@ -339,9 +367,29 @@ struct ExerciseDetailView: View {
                     repsInput = max(1, repsInput - 1)
                 }
                 VStack(spacing: 2) {
-                    Text("\(repsInput)")
-                        .font(.system(size: 36, weight: .bold))
-                        .monospacedDigit()
+                    if editingReps {
+                        TextField("", text: $repsText)
+                            .keyboardType(.numberPad)
+                            .font(.system(size: 36, weight: .bold))
+                            .monospacedDigit()
+                            .multilineTextAlignment(.center)
+                            .focused($manualInputFocused)
+                            .onSubmit { commitRepsEdit() }
+                            .onChange(of: manualInputFocused) { _, focused in
+                                if !focused { commitRepsEdit() }
+                            }
+                    } else {
+                        Text("\(repsInput)")
+                            .font(.system(size: 36, weight: .bold))
+                            .monospacedDigit()
+                            .onTapGesture {
+                                repsText = "\(repsInput)"
+                                editingReps = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    manualInputFocused = true
+                                }
+                            }
+                    }
                     Text("次").font(.subheadline).foregroundStyle(FLColor.text50)
                 }
                 .frame(minWidth: 80)
@@ -417,10 +465,10 @@ struct ExerciseDetailView: View {
 
     private func cardioRecorder(_ exercise: LiveExercise) -> some View {
         VStack(spacing: 20) {
-            sliderRow("坡度", value: $cardioIncline, range: 0...15, step: 0.5, unit: "%")
-            sliderRow("速度", value: $cardioSpeed, range: 2...20, step: 0.5, unit: "km/h")
-            sliderRow("时长", value: $cardioDuration, range: 1...120, step: 1, unit: "分钟")
-            sliderRow("距离（选填）", value: $cardioDistance, range: 0...30, step: 0.1, unit: "km")
+            cardioStepperRow("坡度", value: $cardioIncline, step: 0.5, unit: "%", format: "%.1f")
+            cardioStepperRow("速度", value: $cardioSpeed, step: 0.5, unit: "km/h", format: "%.1f")
+            cardioStepperRow("时长", value: $cardioDuration, step: 1, unit: "分钟", format: "%.0f")
+            cardioStepperRow("距离（选填）", value: $cardioDistance, step: 0.1, unit: "km", format: "%.1f")
 
             Button {
                 workoutState.updateCardio(exerciseId: exerciseId, data: CardioData(
@@ -439,16 +487,59 @@ struct ExerciseDetailView: View {
         .glassCard()
     }
 
-    private func sliderRow(_ label: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double, unit: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(label).font(.subheadline).foregroundStyle(FLColor.text50)
-                Spacer()
-                Text("\(value.wrappedValue, specifier: step >= 1 ? "%.0f" : "%.1f") \(unit)")
-                    .font(.title3.weight(.semibold)).monospacedDigit()
+    private func cardioStepperRow(_ label: String, value: Binding<Double>, step: Double, unit: String, format: String) -> some View {
+        let fieldId = label
+        let isEditing = editingCardioField == fieldId
+
+        return HStack(spacing: 12) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(FLColor.text50)
+                .frame(width: 90, alignment: .leading)
+
+            stepperButton(systemName: "minus", size: 40) {
+                value.wrappedValue = max(0, value.wrappedValue - step)
             }
-            Slider(value: value, in: range, step: step)
-                .tint(FLColor.green.opacity(0.6))
+
+            VStack(spacing: 1) {
+                if isEditing {
+                    TextField("", text: $cardioFieldText)
+                        .keyboardType(.decimalPad)
+                        .font(.title3.weight(.bold))
+                        .monospacedDigit()
+                        .multilineTextAlignment(.center)
+                        .focused($manualInputFocused)
+                        .onSubmit {
+                            if let val = Double(cardioFieldText), val >= 0 { value.wrappedValue = val }
+                            editingCardioField = nil
+                        }
+                        .onChange(of: manualInputFocused) { _, focused in
+                            if !focused {
+                                if let val = Double(cardioFieldText), val >= 0 { value.wrappedValue = val }
+                                editingCardioField = nil
+                            }
+                        }
+                } else {
+                    Text(String(format: format, value.wrappedValue))
+                        .font(.title3.weight(.bold))
+                        .monospacedDigit()
+                        .onTapGesture {
+                            cardioFieldText = String(format: format, value.wrappedValue)
+                            editingCardioField = fieldId
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                manualInputFocused = true
+                            }
+                        }
+                }
+                Text(unit)
+                    .font(.caption2)
+                    .foregroundStyle(FLColor.text40)
+            }
+            .frame(minWidth: 70)
+
+            stepperButton(systemName: "plus", size: 40) {
+                value.wrappedValue += step
+            }
         }
     }
 
@@ -601,12 +692,10 @@ struct ExerciseDetailView: View {
                 .font(size > 50 ? .title : .title2)
                 .foregroundStyle(.white)
                 .frame(width: size, height: size)
-                .background(Color.white.opacity(0.10))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(FLColor.cardBorder, lineWidth: 1)
+                .glassEffect(
+                    .regular.interactive(),
+                    in: .rect(cornerRadius: 16)
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
 
@@ -629,7 +718,7 @@ struct ExerciseDetailView: View {
         if !isLastSet {
             restConfig = RestConfig(
                 seconds: exercise.restSeconds,
-                setInfo: "第 \(pendingSetIndex + 1)/\(exercise.sets.count) 组完成 · 下一组目标：\(String(format: "%.1f", exercise.targetWeight))kg × \(exercise.targetReps)"
+                setInfo: "第 \(pendingSetIndex + 1)/\(exercise.sets.count) 组完成 · 下一组目标：\(formatWeight(exercise.targetWeight))kg × \(exercise.targetReps)"
             )
         } else {
             if let nextId = workoutState.getNextExerciseId(after: exerciseId),
@@ -642,6 +731,20 @@ struct ExerciseDetailView: View {
         }
     }
 
+    private func commitWeightEdit() {
+        if let val = Double(weightText), val >= 0 {
+            currentWeight = val
+        }
+        editingWeight = false
+    }
+
+    private func commitRepsEdit() {
+        if let val = Int(repsText), val >= 1 {
+            repsInput = val
+        }
+        editingReps = false
+    }
+
     private func navigateToNext() {
         guard let nextId = workoutState.getNextExerciseId(after: exerciseId) else { return }
         workoutState.currentExerciseId = nil
@@ -651,8 +754,8 @@ struct ExerciseDetailView: View {
         }
     }
 
-    private func initializeState(_ exercise: LiveExercise) {
-        workoutState.startExercise(exerciseId)
+    private func initializeInputs(_ exercise: LiveExercise) {
+        workoutState.currentExerciseId = exerciseId
         repsInput = Int(exercise.targetReps.components(separatedBy: "-").last ?? "10") ?? 10
         currentWeight = exercise.targetWeight
         exerciseNotes = exercise.exerciseNotes
@@ -662,6 +765,10 @@ struct ExerciseDetailView: View {
             cardioDuration = cardio.duration_minutes
             cardioDistance = cardio.distance_km ?? 0
         }
+    }
+
+    private func formatWeight(_ w: Double) -> String {
+        w.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", w) : String(format: "%.1f", w)
     }
 
     private func hasCoachingContent(_ coaching: ExerciseCoaching?) -> Bool {
