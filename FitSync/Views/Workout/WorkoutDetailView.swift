@@ -9,13 +9,13 @@ struct WorkoutDetailView: View {
                 summaryHeader
 
                 if let warmup = workout.warmup_result, !warmup.isEmpty {
-                    checklistSection("热身", items: warmup)
+                    checklistSection("热身", items: warmup, accentColor: .orange)
                 }
 
                 exerciseList
 
                 if let cooldown = workout.cooldown_result, !cooldown.isEmpty {
-                    checklistSection("拉伸", items: cooldown)
+                    checklistSection("拉伸", items: cooldown, accentColor: .blue)
                 }
 
                 if !workout.journal.isEmpty {
@@ -38,11 +38,14 @@ struct WorkoutDetailView: View {
 
     private var summaryHeader: some View {
         VStack(spacing: 12) {
-            HStack(spacing: 24) {
+            HStack(spacing: 0) {
                 statItem("\(workout.duration_minutes)", label: "分钟")
+                Spacer()
                 statItem("\(workout.exercises.count)", label: "动作")
+                Spacer()
                 statItem("\(totalSets)", label: "组")
-                statItem("评分 \(workout.overall_feeling)", label: "")
+                Spacer()
+                statItem("\(workout.overall_feeling)", label: "评分")
             }
 
             HStack(spacing: 16) {
@@ -59,9 +62,10 @@ struct WorkoutDetailView: View {
 
     private func statItem(_ value: String, label: String) -> some View {
         VStack(spacing: 2) {
-            Text(value).font(.title3.bold())
-            if !label.isEmpty { Text(label).font(.caption2).foregroundStyle(.secondary) }
+            Text(value).font(.title3.bold()).monospacedDigit()
+            Text(label).font(.caption2).foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var totalSets: Int {
@@ -69,7 +73,7 @@ struct WorkoutDetailView: View {
     }
 
     private var exerciseList: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("训练内容").font(.headline)
 
             ForEach(Array(workout.exercises.enumerated()), id: \.offset) { _, ex in
@@ -87,14 +91,15 @@ struct WorkoutDetailView: View {
                     }
 
                     if let sets = ex.sets, !sets.isEmpty {
-                        ForEach(Array(sets.enumerated()), id: \.offset) { idx, set in
+                        ForEach(Array(sets.enumerated()), id: \.offset) { idx, s in
                             HStack {
-                                Text("第 \(idx + 1) 组").font(.caption).foregroundStyle(.secondary)
+                                Text("第 \(idx + 1) 组")
+                                    .font(.caption).foregroundStyle(.secondary)
                                     .frame(width: 50, alignment: .leading)
-                                Text("\(set.weight_kg, specifier: "%.1f")kg × \(set.reps)")
+                                Text("\(String(format: "%.1f", s.weight_kg))kg × \(s.reps)")
                                     .font(.caption.monospacedDigit())
-                                if let rpe = set.rpe {
-                                    Text("RPE \(rpe, specifier: "%.0f")")
+                                if let rpe = s.rpe {
+                                    Text("RPE \(String(format: "%.0f", rpe))")
                                         .font(.caption2).foregroundStyle(.secondary)
                                 }
                                 Spacer()
@@ -104,10 +109,16 @@ struct WorkoutDetailView: View {
 
                     if let cardio = ex.cardio_data {
                         HStack(spacing: 12) {
-                            if let spd = cardio.speed_kmh { Text("\(spd, specifier: "%.1f") km/h").font(.caption) }
-                            Text("\(cardio.duration_minutes, specifier: "%.0f") 分钟").font(.caption)
-                            if let dist = cardio.distance_km { Text("\(dist, specifier: "%.1f") km").font(.caption) }
-                            if let inc = cardio.incline_pct { Text("坡度 \(inc, specifier: "%.0f")%").font(.caption) }
+                            if let spd = cardio.speed_kmh {
+                                Text("\(String(format: "%.1f", spd)) km/h").font(.caption)
+                            }
+                            Text("\(Int(cardio.duration_minutes)) 分钟").font(.caption)
+                            if let dist = cardio.distance_km {
+                                Text("\(String(format: "%.1f", dist)) km").font(.caption)
+                            }
+                            if let inc = cardio.incline_pct {
+                                Text("坡度 \(String(format: "%.0f", inc))%").font(.caption)
+                            }
                         }
                         .foregroundStyle(.secondary)
                     }
@@ -122,13 +133,13 @@ struct WorkoutDetailView: View {
         }
     }
 
-    private func checklistSection(_ title: String, items: [ChecklistResult]) -> some View {
+    private func checklistSection(_ title: String, items: [ChecklistResult], accentColor: Color) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(.headline)
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 HStack {
                     Image(systemName: item.done ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(item.done ? .green : .secondary)
+                        .foregroundStyle(item.done ? accentColor : .secondary)
                     Text(item.action).font(.subheadline)
                 }
             }

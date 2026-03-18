@@ -10,13 +10,17 @@ struct WorkoutDraft: Codable {
     let cooldownItems: [LiveChecklistItem]
     let journalText: String
     let planDate: String?
+    let exerciseTimes: [String: Int]
+    let elapsedSeconds: Int
+    let currentExerciseId: String?
 }
 
-struct LiveSet: Codable {
+struct LiveSet: Codable, Equatable {
     var reps: Int
     var weight_kg: Double
     var rpe: Double?
     var completed: Bool
+    var started_at: String?
     var completed_at: String?
 }
 
@@ -47,7 +51,13 @@ struct LiveExercise: Codable, Identifiable {
     var startedAt: String?
 
     var completedSets: Int { sets.filter(\.completed).count }
-    var isComplete: Bool { type == "cardio" ? cardioData != nil : completedSets >= targetSets }
+
+    var isComplete: Bool {
+        if type == "cardio" {
+            return (cardioData?.duration_minutes ?? 0) > 0
+        }
+        return completedSets >= sets.count && sets.count > 0
+    }
 }
 
 @Observable
@@ -59,12 +69,14 @@ final class WorkoutState {
     var startTimestamp: Date?
     var elapsedSeconds: Int = 0
     var currentExerciseId: String?
+    var exerciseTimes: [String: Int] = [:]
 
     var warmupItems: [LiveChecklistItem] = []
     var cooldownItems: [LiveChecklistItem] = []
     var journalText: String = ""
 
     private var nextId = 1
+    private var draftTimer: Timer?
 
     private func genId() -> String {
         let id = "ex-\(nextId)"
@@ -81,6 +93,7 @@ final class WorkoutState {
         elapsedSeconds = 0
         self.plan = plan
         currentExerciseId = nil
+        exerciseTimes = [:]
         journalText = ""
 
         if let plan {
@@ -123,7 +136,14 @@ final class WorkoutState {
 
     func tick() {
         guard let start = startTimestamp else { return }
-        elapsedSeconds = Int(Date().timeIntervalSince(start))
+        let newElapsed = Int(Date().timeIntervalSince(start))
+        let delta = newElapsed - elapsedSeconds
+        if let currentId = currentExerciseId, delta > 0 {
+            if let ex = exercises.first(where: { $0.id == currentId }), ex.startedAt != nil {
+                exerciseTimes[currentId, default: 0] += delta
+            }
+        }
+        elapsedSeconds = newElapsed
     }
 
     func startExercise(_ exerciseId: String) {
@@ -132,6 +152,14 @@ final class WorkoutState {
            exercises[idx].startedAt == nil {
             exercises[idx].startedAt = ISO8601DateFormatter().string(from: Date())
         }
+        scheduleDraftSave()
+    }
+
+    func startSet(exerciseId: String, setIndex: Int) {
+        guard let idx = exercises.firstIndex(where: { $0.id == exerciseId }) else { return }
+        guard setIndex < exercises[idx].sets.count else { return }
+        exercises[idx].sets[setIndex].started_at = ISO8601DateFormatter().string(from: Date())
+        scheduleDraftSave()
     }
 
     func completeSet(exerciseId: String, setIndex: Int, reps: Int, weight: Double, rpe: Double?) {
@@ -142,13 +170,14 @@ final class WorkoutState {
         exercises[idx].sets[setIndex].rpe = rpe
         exercises[idx].sets[setIndex].completed = true
         exercises[idx].sets[setIndex].completed_at = ISO8601DateFormatter().string(from: Date())
-        saveDraft()
+        scheduleDraftSave()
     }
 
     func addSet(to exerciseId: String) {
         guard let idx = exercises.firstIndex(where: { $0.id == exerciseId }) else { return }
         let weight = exercises[idx].targetWeight
         exercises[idx].sets.append(LiveSet(reps: 0, weight_kg: weight, completed: false))
+        scheduleDraftSave()
     }
 
     func updateCardio(exerciseId: String, data: CardioData) {
@@ -185,13 +214,15 @@ final class WorkoutState {
         ))
     }
 
-    func moveExercise(from: Int, to: Int) {
-        guard from >= 0, from < exercises.count, to >= 0, to <= exercises.count else { return }
-        let item = exercises.remove(at: from)
-        exercises.insert(item, at: to > from ? to - 1 : to)
+    func moveExercise(from source: IndexSet, to destination: Int) {
+        guard let fromIdx = source.first else { return }
+        let item = exercises.remove(at: fromIdx)
+        let toIdx = destination > fromIdx ? destination - 1 : destination
+        exercises.insert(item, at: min(toIdx, exercises.count))
         for i in exercises.indices {
             exercises[i].order = i + 1
         }
+        scheduleDraftSave()
     }
 
     func toggleWarmup(at index: Int) {
@@ -210,6 +241,46 @@ final class WorkoutState {
         return exercises[idx + 1].id
     }
 
+    func endWorkout() {
+        guard let start = startTimestamp else { return }
+        elapsedSeconds = Int(Date().timeIntervalSince(start))
+        active = false
+
+        let snapshot = WorkoutSnapshot(
+            plan: plan,
+            exercises: exercises,
+            startTime: startTime,
+            elapsedSeconds: elapsedSeconds,
+            currentExerciseId: currentExerciseId,
+            exerciseTimes: exerciseTimes,
+            warmupItems: warmupItems,
+            cooldownItems: cooldownItems,
+            journalText: journalText
+        )
+        if let data = try? JSONEncoder().encode(snapshot) {
+            UserDefaults.standard.set(data, forKey: "finished_workout_snapshot")
+        }
+    }
+
+    func restoreFromSnapshot() -> Bool {
+        guard let data = UserDefaults.standard.data(forKey: "finished_workout_snapshot"),
+              let snapshot = try? JSONDecoder().decode(WorkoutSnapshot.self, from: data) else { return false }
+        plan = snapshot.plan
+        exercises = snapshot.exercises
+        startTime = snapshot.startTime
+        elapsedSeconds = snapshot.elapsedSeconds
+        currentExerciseId = snapshot.currentExerciseId
+        exerciseTimes = snapshot.exerciseTimes
+        warmupItems = snapshot.warmupItems
+        cooldownItems = snapshot.cooldownItems
+        journalText = snapshot.journalText
+        return true
+    }
+
+    func clearSnapshot() {
+        UserDefaults.standard.removeObject(forKey: "finished_workout_snapshot")
+    }
+
     func buildResult(feeling: Int, journal: String, sleepHours: Double) -> ResultJSON {
         let now = Date()
         let timeFmt = DateFormatter()
@@ -224,6 +295,7 @@ final class WorkoutState {
                         reps: s.reps,
                         weight_kg: s.weight_kg,
                         rpe: s.rpe,
+                        started_at: s.started_at,
                         completed_at: s.completed_at
                     )
                 }
@@ -279,11 +351,15 @@ final class WorkoutState {
         startTimestamp = nil
         elapsedSeconds = 0
         currentExerciseId = nil
+        exerciseTimes = [:]
         warmupItems = []
         cooldownItems = []
         journalText = ""
         clearDraft()
+        clearSnapshot()
     }
+
+    // MARK: - Draft Persistence
 
     private static let draftKey = "workout_draft"
 
@@ -296,13 +372,17 @@ final class WorkoutState {
             warmupItems: warmupItems,
             cooldownItems: cooldownItems,
             journalText: journalText,
-            planDate: plan?.date
+            planDate: plan?.date,
+            exerciseTimes: exerciseTimes,
+            elapsedSeconds: elapsedSeconds,
+            currentExerciseId: currentExerciseId
         )
         if let data = try? JSONEncoder().encode(draft) {
             UserDefaults.standard.set(data, forKey: Self.draftKey)
         }
     }
 
+    @discardableResult
     func loadDraft() -> Bool {
         guard let data = UserDefaults.standard.data(forKey: Self.draftKey),
               let draft = try? JSONDecoder().decode(WorkoutDraft.self, from: data),
@@ -314,15 +394,36 @@ final class WorkoutState {
         warmupItems = draft.warmupItems
         cooldownItems = draft.cooldownItems
         journalText = draft.journalText
+        exerciseTimes = draft.exerciseTimes
+        currentExerciseId = draft.currentExerciseId
         if let start = startTimestamp {
             elapsedSeconds = Int(Date().timeIntervalSince(start))
         }
+
+        let maxId = exercises.compactMap { ex -> Int? in
+            guard let range = ex.id.range(of: #"^ex-(\d+)$"#, options: .regularExpression) else { return nil }
+            let numStr = ex.id[range].replacingOccurrences(of: "ex-", with: "")
+            return Int(numStr)
+        }.max() ?? 0
+        if maxId >= nextId { nextId = maxId + 1 }
+
         return true
     }
 
     func clearDraft() {
         UserDefaults.standard.removeObject(forKey: Self.draftKey)
+        draftTimer?.invalidate()
+        draftTimer = nil
     }
+
+    private func scheduleDraftSave() {
+        draftTimer?.invalidate()
+        draftTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: false) { [weak self] _ in
+            self?.saveDraft()
+        }
+    }
+
+    // MARK: - Computed Properties
 
     var elapsedFormatted: String {
         let m = elapsedSeconds / 60
@@ -334,15 +435,34 @@ final class WorkoutState {
         exercises.reduce(0) { $0 + $1.completedSets }
     }
 
-    var maxWeight: (Double, String)? {
-        var best: Double = 0
-        var name = ""
-        for ex in exercises {
-            for s in ex.sets where s.completed && s.weight_kg > best {
-                best = s.weight_kg
-                name = ex.name
-            }
-        }
-        return best > 0 ? (best, name) : nil
+    var maxWeight: Double {
+        exercises.flatMap { $0.sets.filter(\.completed).map(\.weight_kg) }.max() ?? 0
     }
+
+    var draftInfo: (muscles: String, exerciseCount: Int, elapsed: Int)? {
+        guard let data = UserDefaults.standard.data(forKey: Self.draftKey),
+              let draft = try? JSONDecoder().decode(WorkoutDraft.self, from: data),
+              draft.active, !draft.exercises.isEmpty else { return nil }
+        let elapsed: Int
+        if let start = draft.startTimestamp {
+            elapsed = Int(Date().timeIntervalSince(start))
+        } else {
+            elapsed = draft.elapsedSeconds
+        }
+        return (muscles: "自由训练", exerciseCount: draft.exercises.count, elapsed: elapsed)
+    }
+}
+
+// MARK: - Snapshot for Finish Page
+
+struct WorkoutSnapshot: Codable {
+    let plan: PlanJSON?
+    let exercises: [LiveExercise]
+    let startTime: String?
+    let elapsedSeconds: Int
+    let currentExerciseId: String?
+    let exerciseTimes: [String: Int]
+    let warmupItems: [LiveChecklistItem]
+    let cooldownItems: [LiveChecklistItem]
+    let journalText: String
 }

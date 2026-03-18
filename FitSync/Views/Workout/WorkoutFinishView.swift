@@ -6,194 +6,255 @@ struct WorkoutFinishView: View {
     @State private var feeling: Int = 7
     @State private var sleepHours: Double = 7.0
     @State private var journal: String = ""
+    @State private var saved = false
+    @State private var saving = false
+    @State private var saveError = ""
+    @State private var syncStatus: SyncStatus = .idle
+    @State private var restored = false
     @Environment(\.dismiss) private var dismiss
 
+    enum SyncStatus { case idle, syncing, success, queued, failed }
+
+    private var totalSets: Int {
+        workoutState.exercises.reduce(0) { $0 + $1.sets.filter(\.completed).count }
+    }
+    private var maxWeight: Double { workoutState.maxWeight }
+    private var durationMin: Int { workoutState.elapsedSeconds / 60 }
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                Text("训练完成").font(.largeTitle.bold())
+        ZStack {
+            AppBackground()
 
-                summarySection
+            ScrollView {
+                VStack(spacing: 20) {
+                    Text("训练完成!")
+                        .font(.largeTitle.bold())
+                        .padding(.top, 16)
 
-                ratingSection
+                    summarySection
+                    feelingSection
+                    sleepSection
+                    journalSection
 
-                sleepSection
-
-                journalSection
-
-                uploadSection
-
-                Button("复制到剪贴板") {
-                    let result = workoutState.buildResult(feeling: feeling, journal: journal, sleepHours: sleepHours)
-                    if let data = try? JSONEncoder().encode(result), let str = String(data: data, encoding: .utf8) {
-                        UIPasteboard.general.string = str
+                    if !saved {
+                        saveSection
+                    } else {
+                        syncResultSection
                     }
-                    WorkoutStore.shared.save(result)
+
+                    if saved {
+                        exportButton
+                    }
                 }
-                .foregroundStyle(.secondary)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
             }
-            .padding()
         }
         .navigationTitle("训练总结")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .tabBar)
         .onAppear {
+            if workoutState.exercises.isEmpty && !restored {
+                restored = true
+                _ = workoutState.restoreFromSnapshot()
+            }
             journal = workoutState.journalText
         }
     }
 
+    // MARK: - Summary
+
     private var summarySection: some View {
-        HStack(spacing: 24) {
-            statItem("\(workoutState.elapsedSeconds / 60)", label: "分钟")
+        HStack(spacing: 0) {
+            statItem("\(durationMin)", label: "分钟")
             statItem("\(workoutState.exercises.count)", label: "动作")
-            statItem("\(workoutState.totalCompletedSets)", label: "组")
-            if let (weight, name) = workoutState.maxWeight {
-                statItem(String(format: "%.1fkg", weight), label: name)
+            statItem("\(totalSets)", label: "组")
+            if maxWeight > 0 {
+                statItem(String(format: "%.0f", maxWeight), label: "kg 最大")
             }
         }
+        .glassCard(padding: 24)
     }
 
     private func statItem(_ value: String, label: String) -> some View {
         VStack(spacing: 4) {
-            Text(value).font(.title2.bold())
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(value)
+                .font(.system(size: 30, weight: .bold, design: .default))
+                .monospacedDigit()
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(FLColor.text40)
         }
+        .frame(maxWidth: .infinity)
     }
 
-    private var ratingSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("今日评分").font(.headline)
-            HStack(spacing: 8) {
+    // MARK: - Feeling
+
+    private var feelingSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("今天练得怎么样？")
+                .font(.subheadline).foregroundStyle(FLColor.text60)
+
+            HStack(spacing: 6) {
                 ForEach(1...10, id: \.self) { n in
                     Button {
                         feeling = n
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     } label: {
                         Text("\(n)")
-                            .font(.body.bold())
-                            .frame(width: 36, height: 36)
-                            .background(feeling == n ? Color.accentColor : Color.clear)
-                            .foregroundStyle(feeling == n ? .white : .primary)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+                            .font(.subheadline.weight(.semibold))
+                            .frame(width: 32, height: 32)
+                            .background(feeling == n ? FLColor.green : Color.white.opacity(0.08))
+                            .foregroundStyle(feeling == n ? .black : FLColor.text40)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .scaleEffect(feeling == n ? 1.1 : 1)
                     }
                 }
             }
         }
+        .glassCard(padding: 24)
     }
 
+    // MARK: - Sleep
+
     private var sleepSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: 10) {
             HStack {
-                Text("昨晚睡眠").font(.headline)
+                Text("昨晚睡了多久？").font(.subheadline).foregroundStyle(FLColor.text50)
                 Spacer()
                 Text("\(sleepHours, specifier: "%.1f") 小时")
-                    .font(.subheadline.monospacedDigit()).foregroundStyle(.secondary)
+                    .font(.title3.weight(.semibold).monospacedDigit())
             }
             Slider(value: $sleepHours, in: 3...12, step: 0.5)
+                .tint(FLColor.green.opacity(0.6))
         }
+        .glassCard()
     }
+
+    // MARK: - Journal
 
     private var journalSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("训练随笔").font(.headline)
-            TextField("记录今天的训练感受...", text: $journal, axis: .vertical)
+            Text("训练随笔").font(.subheadline).foregroundStyle(FLColor.text50)
+            TextField("今天的训练感受、身体状态...", text: $journal, axis: .vertical)
                 .lineLimit(3...8)
-                .textFieldStyle(.roundedBorder)
+                .foregroundStyle(.white)
+                .padding(12)
+                .background(Color.white.opacity(0.05))
+                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(FLColor.cardBorder))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
         }
+        .glassCard()
     }
 
-    private var uploadSection: some View {
-        VStack(spacing: 12) {
-            switch homeVM.uploadPhase {
-            case .idle:
-                Button {
-                    let result = workoutState.buildResult(feeling: feeling, journal: journal, sleepHours: sleepHours)
-                    WorkoutStore.shared.save(result)
-                    Task { await homeVM.uploadResultAndSyncHealth(result: result) }
-                } label: {
-                    Label("上传并同步", systemImage: "icloud.and.arrow.up")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
+    // MARK: - Save
+
+    private var saveSection: some View {
+        VStack(spacing: 8) {
+            Button {
+                Task { await handleSaveAndSync() }
+            } label: {
+                if saving {
+                    ProgressView().tint(.black)
+                } else {
+                    Text("保存并同步")
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+            }
+            .buttonStyle(GreenButtonStyle())
+            .disabled(saving || workoutState.exercises.isEmpty)
+            .opacity(saving || workoutState.exercises.isEmpty ? 0.4 : 1)
 
-            case .uploadingResult:
-                uploadProgress(step1: .inProgress, step2: .pending)
-
-            case .resultUploaded:
-                uploadProgress(step1: .done, step2: .pending)
-
-            case .syncingHealth:
-                uploadProgress(step1: .done, step2: .inProgress)
-
-            case .allDone(_, let healthRecords):
-                uploadProgress(step1: .done, step2: .done)
-                if healthRecords > 0 {
-                    Text("健康数据已同步（\(healthRecords) 条）").font(.caption).foregroundStyle(.green)
-                }
-                Button("完成") {
-                    let result = workoutState.buildResult(feeling: feeling, journal: journal, sleepHours: sleepHours)
-                    WorkoutStore.shared.save(result)
-                    workoutState.reset()
-                    dismiss()
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-
-            case .resultFailed(let msg):
-                Text(msg).foregroundStyle(.red).font(.caption)
-                Button("重试") {
-                    homeVM.uploadPhase = .idle
-                }
-                .buttonStyle(.bordered)
-
-            case .healthFailed(let msg):
-                uploadProgress(step1: .done, step2: .failed)
-                Text(msg).foregroundStyle(.orange).font(.caption)
-                HStack {
-                    Button("重试健康同步") {
-                        let result = workoutState.buildResult(feeling: feeling, journal: journal, sleepHours: sleepHours)
-                        Task { await homeVM.uploadResultAndSyncHealth(result: result) }
-                    }
-                    .buttonStyle(.bordered)
-                    Button("跳过") {
-                        workoutState.reset()
-                        dismiss()
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.secondary)
-                }
+            if !saveError.isEmpty {
+                Text(saveError).font(.caption).foregroundStyle(FLColor.red)
             }
         }
     }
 
-    enum StepStatus { case pending, inProgress, done, failed }
+    // MARK: - Sync Result
 
-    private func uploadProgress(step1: StepStatus, step2: StepStatus) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            stepRow("上传训练记录", status: step1)
-            stepRow("同步健康数据（近7天）", status: step2)
-        }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-    }
-
-    private func stepRow(_ text: String, status: StepStatus) -> some View {
-        HStack(spacing: 8) {
-            switch status {
-            case .pending:
-                Image(systemName: "circle").foregroundStyle(.secondary)
-            case .inProgress:
-                ProgressView().controlSize(.small)
-            case .done:
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+    @ViewBuilder
+    private var syncResultSection: some View {
+        VStack(spacing: 14) {
+            switch syncStatus {
+            case .success:
+                Label("已保存并同步到 GitHub", systemImage: "checkmark.circle.fill")
+                    .font(.headline).foregroundStyle(FLColor.green)
             case .failed:
-                Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
+                Label("已保存到本地", systemImage: "checkmark.circle.fill")
+                    .font(.headline).foregroundStyle(FLColor.green)
+                Text("GitHub 同步失败").font(.caption).foregroundStyle(FLColor.red)
+                Button("重试同步") {
+                    Task { await retrySyncOnly() }
+                }
+                .buttonStyle(SecondaryButtonStyle(fullWidth: false))
+            default:
+                Label("已保存到本地", systemImage: "checkmark.circle.fill")
+                    .font(.headline).foregroundStyle(FLColor.green)
             }
-            Text(text).font(.subheadline)
+
+            Button("返回首页") { handleDone() }
+                .buttonStyle(SecondaryButtonStyle())
         }
+    }
+
+    private var exportButton: some View {
+        Button("复制到剪贴板") {
+            let result = workoutState.buildResult(feeling: feeling, journal: journal, sleepHours: sleepHours)
+            if let data = try? JSONEncoder().encode(result), let str = String(data: data, encoding: .utf8) {
+                UIPasteboard.general.string = str
+            }
+        }
+        .font(.subheadline).foregroundStyle(FLColor.text40)
+    }
+
+    // MARK: - Actions
+
+    private func handleSaveAndSync() async {
+        saving = true
+        saveError = ""
+        let result = workoutState.buildResult(feeling: feeling, journal: journal, sleepHours: sleepHours)
+        WorkoutStore.shared.save(result)
+        workoutState.clearDraft()
+        saved = true
+
+        if homeVM.isConfigured {
+            syncStatus = .syncing
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            guard let jsonData = try? encoder.encode(result) else {
+                syncStatus = .failed; saving = false; return
+            }
+            do {
+                _ = try await homeVM.githubService.pushFileWithDedup(
+                    owner: homeVM.githubOwner, repo: homeVM.githubRepo,
+                    token: homeVM.githubToken, directory: homeVM.inboxPath,
+                    baseName: result.date, content: jsonData,
+                    commitMessage: "[FitSync] workout \(result.date)")
+                syncStatus = .success
+            } catch { syncStatus = .failed }
+        } else { syncStatus = .idle }
+        saving = false
+    }
+
+    private func retrySyncOnly() async {
+        let result = workoutState.buildResult(feeling: feeling, journal: journal, sleepHours: sleepHours)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let jsonData = try? encoder.encode(result) else { return }
+        syncStatus = .syncing
+        do {
+            _ = try await homeVM.githubService.pushFileWithDedup(
+                owner: homeVM.githubOwner, repo: homeVM.githubRepo,
+                token: homeVM.githubToken, directory: homeVM.inboxPath,
+                baseName: result.date, content: jsonData,
+                commitMessage: "[FitSync] workout \(result.date)")
+            syncStatus = .success
+        } catch { syncStatus = .failed }
+    }
+
+    private func handleDone() {
+        workoutState.clearSnapshot()
+        workoutState.reset()
+        dismiss()
     }
 }
