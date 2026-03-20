@@ -3,23 +3,27 @@ import SwiftUI
 struct WorkoutFinishView: View {
     @Bindable var workoutState: WorkoutState
     var homeVM: HomeViewModel
-    @State private var feeling: Int = 7
-    @State private var sleepHours: Double = 7.0
     @State private var journal: String = ""
-    @State private var saved = false
-    @State private var saving = false
-    @State private var saveError = ""
-    @State private var syncStatus: SyncStatus = .idle
+    @State private var isSaving = false
+    @State private var localStep: StepState = .idle
+    @State private var githubStep: StepState = .idle
     @State private var restored = false
     @Environment(\.dismiss) private var dismiss
 
-    enum SyncStatus { case idle, syncing, success, queued, failed }
+    enum StepState: Equatable { case idle, running, done, failed(String) }
 
     private var totalSets: Int {
         workoutState.exercises.reduce(0) { $0 + $1.sets.filter(\.completed).count }
     }
     private var maxWeight: Double { workoutState.maxWeight }
     private var durationMin: Int { workoutState.elapsedSeconds / 60 }
+    private var allDone: Bool {
+        localStep == .done && (githubStep == .done || !homeVM.isConfigured)
+    }
+    private var hasFailed: Bool {
+        if case .failed = githubStep { return true }
+        return false
+    }
 
     var body: some View {
         ZStack {
@@ -32,18 +36,12 @@ struct WorkoutFinishView: View {
                         .padding(.top, 16)
 
                     summarySection
-                    feelingSection
-                    sleepSection
                     journalSection
 
-                    if !saved {
-                        saveSection
-                    } else {
-                        syncResultSection
-                    }
-
-                    if saved {
-                        exportButton
+                    if !isSaving && localStep == .idle {
+                        saveButton
+                    } else if isSaving || localStep != .idle {
+                        saveProgressSection
                     }
                 }
                 .padding(.horizontal, 20)
@@ -88,49 +86,6 @@ struct WorkoutFinishView: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Feeling
-
-    private var feelingSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("今天练得怎么样？")
-                .font(.subheadline).foregroundStyle(FLColor.text60)
-
-            HStack(spacing: 6) {
-                ForEach(1...10, id: \.self) { n in
-                    Button {
-                        feeling = n
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    } label: {
-                        Text("\(n)")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(width: 32, height: 32)
-                            .background(feeling == n ? FLColor.green : Color.white.opacity(0.08))
-                            .foregroundStyle(feeling == n ? .black : FLColor.text40)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                            .scaleEffect(feeling == n ? 1.1 : 1)
-                    }
-                }
-            }
-        }
-        .glassCard(padding: 24)
-    }
-
-    // MARK: - Sleep
-
-    private var sleepSection: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Text("昨晚睡了多久？").font(.subheadline).foregroundStyle(FLColor.text50)
-                Spacer()
-                Text("\(sleepHours, specifier: "%.1f") 小时")
-                    .font(.title3.weight(.semibold).monospacedDigit())
-            }
-            Slider(value: $sleepHours, in: 3...12, step: 0.5)
-                .tint(FLColor.green.opacity(0.6))
-        }
-        .glassCard()
-    }
-
     // MARK: - Journal
 
     private var journalSection: some View {
@@ -147,109 +102,153 @@ struct WorkoutFinishView: View {
         .glassCard()
     }
 
-    // MARK: - Save
+    // MARK: - Save Button
 
-    private var saveSection: some View {
-        VStack(spacing: 8) {
-            Button {
-                Task { await handleSaveAndSync() }
-            } label: {
-                if saving {
-                    ProgressView().tint(.black)
-                } else {
-                    Text("保存并同步")
-                }
-            }
-            .buttonStyle(GreenButtonStyle())
-            .disabled(saving || workoutState.exercises.isEmpty)
-            .opacity(saving || workoutState.exercises.isEmpty ? 0.4 : 1)
-
-            if !saveError.isEmpty {
-                Text(saveError).font(.caption).foregroundStyle(FLColor.red)
-            }
+    private var saveButton: some View {
+        Button {
+            Task { await handleSaveAndSync() }
+        } label: {
+            Text("保存并同步")
         }
+        .buttonStyle(GreenButtonStyle())
+        .disabled(workoutState.exercises.isEmpty)
+        .opacity(workoutState.exercises.isEmpty ? 0.4 : 1)
     }
 
-    // MARK: - Sync Result
+    // MARK: - Save Progress
 
-    @ViewBuilder
-    private var syncResultSection: some View {
-        VStack(spacing: 14) {
-            switch syncStatus {
-            case .success:
-                Label("已保存并同步到 GitHub", systemImage: "checkmark.circle.fill")
-                    .font(.headline).foregroundStyle(FLColor.green)
-            case .failed:
-                Label("已保存到本地", systemImage: "checkmark.circle.fill")
-                    .font(.headline).foregroundStyle(FLColor.green)
-                Text("GitHub 同步失败").font(.caption).foregroundStyle(FLColor.red)
+    private var saveProgressSection: some View {
+        VStack(spacing: 16) {
+            stepRow(
+                icon: stepIcon(localStep),
+                color: stepColor(localStep),
+                label: "保存到本地",
+                spinning: localStep == .running
+            )
+
+            if homeVM.isConfigured {
+                stepRow(
+                    icon: stepIcon(githubStep),
+                    color: stepColor(githubStep),
+                    label: "同步到 GitHub",
+                    spinning: githubStep == .running
+                )
+            }
+
+            if case .failed(let msg) = githubStep {
+                Text(msg).font(.caption).foregroundStyle(FLColor.red)
                 Button("重试同步") {
                     Task { await retrySyncOnly() }
                 }
                 .buttonStyle(SecondaryButtonStyle(fullWidth: false))
-            default:
-                Label("已保存到本地", systemImage: "checkmark.circle.fill")
-                    .font(.headline).foregroundStyle(FLColor.green)
             }
 
-            Button("返回首页") { handleDone() }
-                .buttonStyle(SecondaryButtonStyle())
+            if allDone || hasFailed {
+                Button("返回首页") { handleDone() }
+                    .buttonStyle(SecondaryButtonStyle())
+
+                Button("复制到剪贴板") {
+                    let result = workoutState.buildResult(feeling: 0, journal: journal, sleepHours: 0)
+                    if let data = try? JSONEncoder().encode(result),
+                       let str = String(data: data, encoding: .utf8) {
+                        UIPasteboard.general.string = str
+                    }
+                }
+                .font(.subheadline).foregroundStyle(FLColor.text40)
+            }
+        }
+        .glassCard()
+    }
+
+    private func stepRow(icon: String, color: Color, label: String, spinning: Bool) -> some View {
+        HStack(spacing: 12) {
+            if spinning {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(width: 20, height: 20)
+            } else {
+                Image(systemName: icon)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(color)
+                    .frame(width: 20, height: 20)
+            }
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(spinning ? FLColor.text50 : .white)
+            Spacer()
         }
     }
 
-    private var exportButton: some View {
-        Button("复制到剪贴板") {
-            let result = workoutState.buildResult(feeling: feeling, journal: journal, sleepHours: sleepHours)
-            if let data = try? JSONEncoder().encode(result), let str = String(data: data, encoding: .utf8) {
-                UIPasteboard.general.string = str
-            }
+    private func stepIcon(_ state: StepState) -> String {
+        switch state {
+        case .idle: "circle"
+        case .running: ""
+        case .done: "checkmark.circle.fill"
+        case .failed: "xmark.circle.fill"
         }
-        .font(.subheadline).foregroundStyle(FLColor.text40)
+    }
+
+    private func stepColor(_ state: StepState) -> Color {
+        switch state {
+        case .idle: FLColor.text30
+        case .running: FLColor.text50
+        case .done: FLColor.green
+        case .failed: FLColor.red
+        }
     }
 
     // MARK: - Actions
 
     private func handleSaveAndSync() async {
-        saving = true
-        saveError = ""
-        let result = workoutState.buildResult(feeling: feeling, journal: journal, sleepHours: sleepHours)
+        isSaving = true
+        localStep = .running
+        if homeVM.isConfigured { githubStep = .idle }
+
+        let result = workoutState.buildResult(feeling: 0, journal: journal, sleepHours: 0)
+
         WorkoutStore.shared.save(result)
         workoutState.clearDraft()
-        saved = true
+        localStep = .done
 
-        if homeVM.isConfigured {
-            syncStatus = .syncing
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            guard let jsonData = try? encoder.encode(result) else {
-                syncStatus = .failed; saving = false; return
-            }
-            do {
-                _ = try await homeVM.githubService.pushFileWithDedup(
-                    owner: homeVM.githubOwner, repo: homeVM.githubRepo,
-                    token: homeVM.githubToken, directory: homeVM.inboxPath,
-                    baseName: result.date, content: jsonData,
-                    commitMessage: "[FitSync] workout \(result.date)")
-                syncStatus = .success
-            } catch { syncStatus = .failed }
-        } else { syncStatus = .idle }
-        saving = false
-    }
+        guard homeVM.isConfigured else { isSaving = false; return }
 
-    private func retrySyncOnly() async {
-        let result = workoutState.buildResult(feeling: feeling, journal: journal, sleepHours: sleepHours)
+        githubStep = .running
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        guard let jsonData = try? encoder.encode(result) else { return }
-        syncStatus = .syncing
+        guard let jsonData = try? encoder.encode(result) else {
+            githubStep = .failed("编码失败")
+            isSaving = false
+            return
+        }
         do {
             _ = try await homeVM.githubService.pushFileWithDedup(
                 owner: homeVM.githubOwner, repo: homeVM.githubRepo,
                 token: homeVM.githubToken, directory: homeVM.inboxPath,
                 baseName: result.date, content: jsonData,
                 commitMessage: "[FitSync] workout \(result.date)")
-            syncStatus = .success
-        } catch { syncStatus = .failed }
+            githubStep = .done
+        } catch {
+            githubStep = .failed(error.localizedDescription)
+        }
+        isSaving = false
+    }
+
+    private func retrySyncOnly() async {
+        let result = workoutState.buildResult(feeling: 0, journal: journal, sleepHours: 0)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let jsonData = try? encoder.encode(result) else { return }
+        githubStep = .running
+        do {
+            _ = try await homeVM.githubService.pushFileWithDedup(
+                owner: homeVM.githubOwner, repo: homeVM.githubRepo,
+                token: homeVM.githubToken, directory: homeVM.inboxPath,
+                baseName: result.date, content: jsonData,
+                commitMessage: "[FitSync] workout \(result.date)")
+            githubStep = .done
+        } catch {
+            githubStep = .failed(error.localizedDescription)
+        }
     }
 
     private func handleDone() {
