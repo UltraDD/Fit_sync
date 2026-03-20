@@ -29,13 +29,16 @@ struct WorkoutHomeView: View {
                             planCard
                         }
 
-                        if !workoutState.active, let plan = homeVM.plan,
+                        if !workoutState.active, !homeVM.planCompleted,
+                           let plan = homeVM.plan,
                            let notes = plan.coach_notes, !notes.isEmpty {
                             coachNotesCard(notes)
                         }
 
                         if !workoutState.active, let last = WorkoutStore.shared.lastWorkout() {
-                            lastWorkoutCard(last)
+                            if !(homeVM.planCompleted && homeVM.plan?.date == last.date) {
+                                lastWorkoutCard(last)
+                            }
                         }
 
                         quickActions
@@ -172,6 +175,13 @@ struct WorkoutHomeView: View {
 
     // MARK: - Plan Card
 
+    private var todayResult: ResultJSON? {
+        guard let plan = homeVM.plan, homeVM.planCompleted else { return nil }
+        return WorkoutStore.shared.history.first {
+            $0.date == plan.date || $0.plan_ref == plan.date
+        }
+    }
+
     private var planCard: some View {
         Group {
             if homeVM.syncing {
@@ -182,82 +192,149 @@ struct WorkoutHomeView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
             } else if let plan = homeVM.plan {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        if homeVM.planCompleted {
-                            FLBadge(text: "今日计划已完成", color: FLColor.text50)
-                        } else {
-                            FLBadge(text: "发现新计划", color: FLColor.green)
-                        }
-                        Spacer()
-                        Text(plan.date).font(.subheadline).foregroundStyle(FLColor.text40)
-                    }
-
-                    Text(plan.target_muscles.joined(separator: " + "))
-                        .font(.title3.bold())
-
-                    Text("\(plan.exercises.count) 个动作 · 预计 \(plan.estimated_minutes) 分钟")
-                        .font(.subheadline).foregroundStyle(FLColor.text50)
-
-                    if let greeting = plan.coach_greeting, !greeting.isEmpty {
-                        Text(greeting)
-                            .font(.subheadline)
-                            .foregroundStyle(FLColor.amberLight.opacity(0.8))
-                    }
-
-                    Button {
-                        workoutState.startWorkout(plan: plan)
-                        navigateToSession = true
-                    } label: {
-                        Text(homeVM.planCompleted ? "再练一次" : "开始训练")
-                    }
-                    .buttonStyle(GreenButtonStyle())
+                if homeVM.planCompleted {
+                    completedPlanCard(plan)
+                } else {
+                    pendingPlanCard(plan)
                 }
-                .glassCard(highlight: !homeVM.planCompleted)
             } else {
-                VStack(spacing: 16) {
-                    Image(systemName: "figure.strengthtraining.traditional")
-                        .font(.system(size: 36))
-                        .foregroundStyle(FLColor.text20)
-
-                    Text("暂无训练计划")
-                        .font(.headline)
-                        .foregroundStyle(FLColor.text50)
-
-                    if homeVM.isConfigured {
-                        if let sync = homeVM.lastSync {
-                            Text("上次同步 \(sync)")
-                                .font(.caption)
-                                .foregroundStyle(FLColor.text30)
-                        }
-                        Button("刷新") { Task { await homeVM.fetchPlan() } }
-                            .buttonStyle(SecondaryButtonStyle(fullWidth: false))
-                    } else {
-                        Text("配置 GitHub 后可自动同步 AI 生成的计划")
-                            .font(.subheadline)
-                            .foregroundStyle(FLColor.text30)
-                            .multilineTextAlignment(.center)
-
-                        NavigationLink {
-                            SettingsView()
-                        } label: {
-                            Label("前往设置", systemImage: "gearshape")
-                        }
-                        .buttonStyle(SecondaryButtonStyle(fullWidth: false))
-                    }
-
-                    Button {
-                        workoutState.startWorkout(plan: nil)
-                        navigateToSession = true
-                    } label: {
-                        Text("直接开始自由训练 →")
-                    }
-                    .buttonStyle(GreenButtonStyle())
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 24)
+                noPlanCard
             }
         }
+    }
+
+    private func completedPlanCard(_ plan: PlanJSON) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(FLColor.green)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("今日训练已完成")
+                        .font(.headline)
+                    Text(plan.target_muscles.joined(separator: " + "))
+                        .font(.subheadline)
+                        .foregroundStyle(FLColor.text50)
+                }
+                Spacer()
+            }
+
+            if let result = todayResult {
+                let sets = result.exercises.reduce(0) { $0 + ($1.sets?.count ?? 0) }
+                let mw = result.exercises.flatMap { $0.sets ?? [] }.map(\.weight_kg).max() ?? 0
+
+                HStack(spacing: 0) {
+                    completedStat("\(result.duration_minutes)", label: "分钟")
+                    completedStat("\(result.exercises.count)", label: "动作")
+                    completedStat("\(sets)", label: "组")
+                    if mw > 0 {
+                        completedStat(String(format: "%.0f", mw), label: "kg")
+                    }
+                }
+
+                HStack {
+                    HStack(spacing: 4) {
+                        Text("体感").font(.caption).foregroundStyle(FLColor.text40)
+                        Text("\(result.overall_feeling)/10")
+                            .font(.subheadline.weight(.semibold))
+                            .monospacedDigit()
+                    }
+                    Spacer()
+                    if !result.start_time.isEmpty && !result.end_time.isEmpty {
+                        Text("\(result.start_time) – \(result.end_time)")
+                            .font(.caption).foregroundStyle(FLColor.text30)
+                    }
+                }
+            }
+        }
+        .glassCard()
+    }
+
+    private func completedStat(_ value: String, label: String) -> some View {
+        VStack(spacing: 3) {
+            Text(value)
+                .font(.title3.bold())
+                .monospacedDigit()
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(FLColor.text40)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func pendingPlanCard(_ plan: PlanJSON) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                FLBadge(text: "发现新计划", color: FLColor.green)
+                Spacer()
+                Text(plan.date).font(.subheadline).foregroundStyle(FLColor.text40)
+            }
+
+            Text(plan.target_muscles.joined(separator: " + "))
+                .font(.title3.bold())
+
+            Text("\(plan.exercises.count) 个动作 · 预计 \(plan.estimated_minutes) 分钟")
+                .font(.subheadline).foregroundStyle(FLColor.text50)
+
+            if let greeting = plan.coach_greeting, !greeting.isEmpty {
+                Text(greeting)
+                    .font(.subheadline)
+                    .foregroundStyle(FLColor.amberLight.opacity(0.8))
+            }
+
+            Button {
+                workoutState.startWorkout(plan: plan)
+                navigateToSession = true
+            } label: {
+                Text("开始训练")
+            }
+            .buttonStyle(GreenButtonStyle())
+        }
+        .glassCard(highlight: true)
+    }
+
+    private var noPlanCard: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "figure.strengthtraining.traditional")
+                .font(.system(size: 36))
+                .foregroundStyle(FLColor.text20)
+
+            Text("暂无训练计划")
+                .font(.headline)
+                .foregroundStyle(FLColor.text50)
+
+            if homeVM.isConfigured {
+                if let sync = homeVM.lastSync {
+                    Text("上次同步 \(sync)")
+                        .font(.caption)
+                        .foregroundStyle(FLColor.text30)
+                }
+                Button("刷新") { Task { await homeVM.fetchPlan() } }
+                    .buttonStyle(SecondaryButtonStyle(fullWidth: false))
+            } else {
+                Text("配置 GitHub 后可自动同步 AI 生成的计划")
+                    .font(.subheadline)
+                    .foregroundStyle(FLColor.text30)
+                    .multilineTextAlignment(.center)
+
+                NavigationLink {
+                    SettingsView()
+                } label: {
+                    Label("前往设置", systemImage: "gearshape")
+                }
+                .buttonStyle(SecondaryButtonStyle(fullWidth: false))
+            }
+
+            Button {
+                workoutState.startWorkout(plan: nil)
+                navigateToSession = true
+            } label: {
+                Text("直接开始自由训练 →")
+            }
+            .buttonStyle(GreenButtonStyle())
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
     }
 
     // MARK: - Coach Notes
