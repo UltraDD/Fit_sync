@@ -184,19 +184,19 @@ struct WorkoutHomeView: View {
 
     private var planCard: some View {
         Group {
-            if homeVM.syncing {
+            if let plan = homeVM.plan {
+                if homeVM.planCompleted {
+                    completedPlanCard(plan)
+                } else {
+                    pendingPlanCard(plan)
+                }
+            } else if homeVM.syncing {
                 VStack(spacing: 8) {
                     ProgressView()
                     Text("正在同步计划...").font(.subheadline).foregroundStyle(FLColor.text40)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
-            } else if let plan = homeVM.plan {
-                if homeVM.planCompleted {
-                    completedPlanCard(plan)
-                } else {
-                    pendingPlanCard(plan)
-                }
             } else {
                 noPlanCard
             }

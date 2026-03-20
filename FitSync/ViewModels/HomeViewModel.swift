@@ -45,7 +45,11 @@ final class HomeViewModel {
         do {
             let files = try await githubService.listFiles(owner: githubOwner, repo: githubRepo, token: githubToken, path: outboxPath)
             let jsonFiles = files.filter { $0.name.hasSuffix(".json") }.sorted { $0.name > $1.name }
-            guard let latest = jsonFiles.first else { plan = nil; return }
+            guard let latest = jsonFiles.first else {
+                plan = nil
+                planCompleted = false
+                return
+            }
 
             if let data = try await githubService.fetchFileContent(owner: githubOwner, repo: githubRepo, token: githubToken, path: latest.path) {
                 let decoded = try JSONDecoder().decode(PlanJSON.self, from: data)
@@ -55,7 +59,7 @@ final class HomeViewModel {
                 }
             }
         } catch {
-            plan = nil
+            // Keep existing plan on network errors; don't clear valid data
         }
 
         let timeFmt = DateFormatter()
