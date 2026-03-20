@@ -232,18 +232,10 @@ struct WorkoutHomeView: View {
                     }
                 }
 
-                HStack {
-                    HStack(spacing: 4) {
-                        Text("体感").font(.caption).foregroundStyle(FLColor.text40)
-                        Text("\(result.overall_feeling)/10")
-                            .font(.subheadline.weight(.semibold))
-                            .monospacedDigit()
-                    }
-                    Spacer()
-                    if !result.start_time.isEmpty && !result.end_time.isEmpty {
-                        Text("\(result.start_time) – \(result.end_time)")
-                            .font(.caption).foregroundStyle(FLColor.text30)
-                    }
+                if !result.start_time.isEmpty && !result.end_time.isEmpty {
+                    Text("\(result.start_time) – \(result.end_time)")
+                        .font(.caption).foregroundStyle(FLColor.text30)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
         }
@@ -373,10 +365,6 @@ struct WorkoutHomeView: View {
                         .font(.caption).foregroundStyle(FLColor.text40)
                     }
                     Spacer()
-                    Text("\(w.overall_feeling)")
-                        .font(.title3.bold())
-                        .frame(width: 40, height: 40)
-                        .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
