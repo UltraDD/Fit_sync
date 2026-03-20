@@ -692,8 +692,9 @@ struct ExerciseDetailView: View {
                 .font(size > 50 ? .title : .title2)
                 .foregroundStyle(.white)
                 .frame(width: size, height: size)
+                .contentShape(RoundedRectangle(cornerRadius: 16))
                 .glassEffect(
-                    .regular.interactive(),
+                    .regular,
                     in: .rect(cornerRadius: 16)
                 )
         }
@@ -789,4 +790,5 @@ extension ExerciseDetailView.TransitionRestConfig: Identifiable {
 
 extension Notification.Name {
     static let navigateToExercise = Notification.Name("navigateToExercise")
+    static let dismissToHome = Notification.Name("dismissToHome")
 }

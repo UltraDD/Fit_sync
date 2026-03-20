@@ -126,20 +126,18 @@ struct WorkoutHomeView: View {
             Text("\(workoutState.plan?.target_muscles.joined(separator: " + ") ?? "自由训练") · \(workoutState.exercises.count) 个动作 · \(workoutState.elapsedFormatted)")
                 .font(.subheadline).foregroundStyle(FLColor.text50)
 
-            GlassEffectContainer(spacing: 20) {
-                HStack(spacing: 12) {
-                    Button("继续训练") {
-                        navigateToSession = true
-                    }
-                    .buttonStyle(GreenButtonStyle(fullWidth: false))
-                    .frame(maxWidth: .infinity)
-
-                    Button("放弃") {
-                        workoutState.reset()
-                    }
-                    .buttonStyle(SecondaryButtonStyle(fullWidth: false))
-                    .frame(maxWidth: .infinity)
+            HStack(spacing: 12) {
+                Button("继续训练") {
+                    navigateToSession = true
                 }
+                .buttonStyle(GreenButtonStyle(fullWidth: false))
+                .frame(maxWidth: .infinity)
+
+                Button("放弃") {
+                    workoutState.reset()
+                }
+                .buttonStyle(SecondaryButtonStyle(fullWidth: false))
+                .frame(maxWidth: .infinity)
             }
         }
         .glassCard(highlight: true)
@@ -154,21 +152,19 @@ struct WorkoutHomeView: View {
             Text("\(info.muscles) · \(info.exerciseCount) 个动作 · 已用时 \(formatElapsed(info.elapsed))")
                 .font(.subheadline).foregroundStyle(FLColor.text50)
 
-            GlassEffectContainer(spacing: 20) {
-                HStack(spacing: 12) {
-                    Button("恢复训练") {
-                        workoutState.loadDraft()
-                        navigateToSession = true
-                    }
-                    .buttonStyle(GreenButtonStyle(fullWidth: false))
-                    .frame(maxWidth: .infinity)
-
-                    Button("放弃") {
-                        workoutState.clearDraft()
-                    }
-                    .buttonStyle(SecondaryButtonStyle(fullWidth: false))
-                    .frame(maxWidth: .infinity)
+            HStack(spacing: 12) {
+                Button("恢复训练") {
+                    workoutState.loadDraft()
+                    navigateToSession = true
                 }
+                .buttonStyle(GreenButtonStyle(fullWidth: false))
+                .frame(maxWidth: .infinity)
+
+                Button("放弃") {
+                    workoutState.clearDraft()
+                }
+                .buttonStyle(SecondaryButtonStyle(fullWidth: false))
+                .frame(maxWidth: .infinity)
             }
         }
         .glassCard()
@@ -315,21 +311,19 @@ struct WorkoutHomeView: View {
     // MARK: - Quick Actions
 
     private var quickActions: some View {
-        GlassEffectContainer(spacing: 20) {
-            HStack(spacing: 12) {
-                Button {
-                    workoutState.startWorkout(plan: nil)
-                    navigateToSession = true
-                } label: {
-                    Label("自由训练", systemImage: "figure.strengthtraining.traditional")
-                }
-                .buttonStyle(SecondaryButtonStyle())
-
-                Button { showImportSheet = true } label: {
-                    Label("导入计划", systemImage: "doc.badge.plus")
-                }
-                .buttonStyle(SecondaryButtonStyle())
+        HStack(spacing: 12) {
+            Button {
+                workoutState.startWorkout(plan: nil)
+                navigateToSession = true
+            } label: {
+                Label("自由训练", systemImage: "figure.strengthtraining.traditional")
             }
+            .buttonStyle(SecondaryButtonStyle())
+
+            Button { showImportSheet = true } label: {
+                Label("导入计划", systemImage: "doc.badge.plus")
+            }
+            .buttonStyle(SecondaryButtonStyle())
         }
     }
 

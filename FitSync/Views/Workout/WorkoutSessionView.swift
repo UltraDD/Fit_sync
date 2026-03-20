@@ -113,6 +113,15 @@ struct WorkoutSessionView: View {
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToExercise)) { notification in
+            if let nextId = notification.object as? String {
+                selectedExerciseId = nextId
+                navigateToExercise = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .dismissToHome)) { _ in
+            dismiss()
+        }
         .onDisappear {
             timer?.invalidate()
             workoutState.saveDraft()
@@ -350,7 +359,6 @@ struct WorkoutSessionView: View {
     // MARK: - Bottom Bar
 
     private var bottomBar: some View {
-        GlassEffectContainer(spacing: 20) {
         HStack(spacing: 12) {
             Button {
                 showJournal.toggle()
@@ -359,7 +367,8 @@ struct WorkoutSessionView: View {
                     .font(.title3)
                     .foregroundStyle(FLColor.text60)
                     .frame(width: 44, height: 44)
-                    .glassEffect(.regular.interactive(), in: .circle)
+                    .contentShape(Circle())
+                    .glassEffect(.regular, in: .circle)
             }
 
             if !confirmEnd {
@@ -413,19 +422,20 @@ struct WorkoutSessionView: View {
                     .font(.title2.bold())
                     .foregroundStyle(.white)
                     .frame(width: 56, height: 56)
+                    .contentShape(RoundedRectangle(cornerRadius: 16))
                     .glassEffect(
-                        .regular.interactive().tint(FLColor.green),
+                        .regular.tint(FLColor.green),
                         in: .rect(cornerRadius: 16)
                     )
             }
         }
-        }
         .padding(.horizontal, 20)
         .padding(.top, 12)
-        .padding(.bottom, 24)
+        .padding(.bottom, 12)
         .background(
             FLColor.bg.opacity(0.8)
                 .background(.ultraThinMaterial)
+                .ignoresSafeArea(.container, edges: .bottom)
         )
         .overlay(alignment: .top) {
             Rectangle().fill(Color.white.opacity(0.05)).frame(height: 1)

@@ -10,6 +10,7 @@ struct WorkoutDraft: Codable {
     let cooldownItems: [LiveChecklistItem]
     let journalText: String
     let planDate: String?
+    let planMuscles: String?
     let exerciseTimes: [String: Int]
     let elapsedSeconds: Int
     let currentExerciseId: String?
@@ -373,6 +374,7 @@ final class WorkoutState {
             cooldownItems: cooldownItems,
             journalText: journalText,
             planDate: plan?.date,
+            planMuscles: plan?.target_muscles.joined(separator: " + "),
             exerciseTimes: exerciseTimes,
             elapsedSeconds: elapsedSeconds,
             currentExerciseId: currentExerciseId
@@ -449,7 +451,8 @@ final class WorkoutState {
         } else {
             elapsed = draft.elapsedSeconds
         }
-        return (muscles: "自由训练", exerciseCount: draft.exercises.count, elapsed: elapsed)
+        let muscles = draft.planMuscles ?? "自由训练"
+        return (muscles: muscles, exerciseCount: draft.exercises.count, elapsed: elapsed)
     }
 }
 

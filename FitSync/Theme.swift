@@ -71,10 +71,14 @@ struct GreenButtonStyle: ButtonStyle {
             .frame(maxWidth: fullWidth ? .infinity : nil)
             .padding(.horizontal, fullWidth ? 0 : 20)
             .frame(minHeight: 56)
+            .contentShape(RoundedRectangle(cornerRadius: 16))
             .glassEffect(
-                .regular.interactive().tint(FLColor.green),
+                .regular.tint(FLColor.green),
                 in: .rect(cornerRadius: 16)
             )
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeInOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -88,10 +92,14 @@ struct SecondaryButtonStyle: ButtonStyle {
             .frame(maxWidth: fullWidth ? .infinity : nil)
             .padding(.horizontal, fullWidth ? 0 : 20)
             .frame(minHeight: 56)
+            .contentShape(RoundedRectangle(cornerRadius: 16))
             .glassEffect(
-                .regular.interactive(),
+                .regular,
                 in: .rect(cornerRadius: 16)
             )
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeInOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -102,10 +110,14 @@ struct DangerButtonStyle: ButtonStyle {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .frame(minHeight: 56)
+            .contentShape(RoundedRectangle(cornerRadius: 16))
             .glassEffect(
-                .regular.interactive().tint(FLColor.red),
+                .regular.tint(FLColor.red),
                 in: .rect(cornerRadius: 16)
             )
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeInOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 

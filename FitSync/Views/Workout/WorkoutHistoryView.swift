@@ -203,13 +203,11 @@ struct WorkoutHistoryView: View {
                         Button("删除此记录") { deletingDate = workout.uniqueId }
                             .font(.caption).foregroundStyle(FLColor.red.opacity(0.7))
                     } else {
-                        GlassEffectContainer(spacing: 20) {
-                            HStack(spacing: 12) {
-                                Button("确认删除") { deleteWorkout(workout) }
-                                    .buttonStyle(DangerButtonStyle())
-                                Button("取消") { deletingDate = nil }
-                                    .buttonStyle(SecondaryButtonStyle())
-                            }
+                        HStack(spacing: 12) {
+                            Button("确认删除") { deleteWorkout(workout) }
+                                .buttonStyle(DangerButtonStyle())
+                            Button("取消") { deletingDate = nil }
+                                .buttonStyle(SecondaryButtonStyle())
                         }
                     }
                 }

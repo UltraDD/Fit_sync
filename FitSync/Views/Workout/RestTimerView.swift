@@ -96,21 +96,19 @@ struct RestTimerView: View {
 
                 Spacer()
 
-                GlassEffectContainer(spacing: 20) {
-                    HStack(spacing: 16) {
-                        Button { add30Seconds() } label: {
-                            Text("+30秒")
-                        }
-                        .buttonStyle(SecondaryButtonStyle())
-
-                        Button {
-                            cleanup()
-                            onDone()
-                        } label: {
-                            Text("跳过")
-                        }
-                        .buttonStyle(GreenButtonStyle())
+                HStack(spacing: 16) {
+                    Button { add30Seconds() } label: {
+                        Text("+30秒")
                     }
+                    .buttonStyle(SecondaryButtonStyle())
+
+                    Button {
+                        cleanup()
+                        onDone()
+                    } label: {
+                        Text("跳过")
+                    }
+                    .buttonStyle(GreenButtonStyle())
                 }
                 .padding(.horizontal, 20)
 

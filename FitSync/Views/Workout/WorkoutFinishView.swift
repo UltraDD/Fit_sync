@@ -256,5 +256,8 @@ struct WorkoutFinishView: View {
         workoutState.clearSnapshot()
         workoutState.reset()
         dismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            NotificationCenter.default.post(name: .dismissToHome, object: nil)
+        }
     }
 }
