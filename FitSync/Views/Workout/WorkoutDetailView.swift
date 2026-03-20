@@ -45,12 +45,10 @@ struct WorkoutDetailView: View {
                 Spacer()
                 statItem("\(totalSets)", label: "组")
                 Spacer()
-                statItem("\(workout.overall_feeling)", label: "评分")
             }
 
             HStack(spacing: 16) {
                 Label("\(workout.start_time) – \(workout.end_time)", systemImage: "clock")
-                Label("睡眠 \(String(format: "%.1f", workout.sleep_hours))h", systemImage: "bed.double")
             }
             .font(.caption)
             .foregroundStyle(.secondary)

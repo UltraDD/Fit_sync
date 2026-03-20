@@ -163,10 +163,6 @@ struct WorkoutHistoryView: View {
                         .font(.caption).foregroundStyle(FLColor.text40)
                     }
                     Spacer()
-                    Text("\(workout.overall_feeling)")
-                        .font(.title3.bold())
-                        .frame(width: 36, height: 36)
-                        .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
                 }
             }
             .buttonStyle(.plain)
