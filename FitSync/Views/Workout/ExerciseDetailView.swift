@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct ExerciseDetailView: View {
     @Bindable var workoutState: WorkoutState
@@ -21,6 +22,8 @@ struct ExerciseDetailView: View {
     @State private var cardioDuration: Double = 20
     @State private var cardioDistance: Double = 0
     @State private var cardioSaved = false
+    @State private var now = Date()
+    @State private var cardioPhase: CardioPhase = .timing
 
     @State private var editingWeight = false
     @State private var weightText = ""
@@ -35,6 +38,9 @@ struct ExerciseDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     enum InputPhase { case idle, repsInput, rpeSelect }
+    enum CardioPhase { case timing, editing }
+
+    private let secondTicker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     struct RestConfig {
         let seconds: Int
@@ -85,6 +91,9 @@ struct ExerciseDetailView: View {
                     }
                 }
                 .onAppear { initializeInputs(exercise) }
+                .onReceive(secondTicker) { date in
+                    now = date
+                }
         } else {
             ContentUnavailableView("动作未找到", systemImage: "exclamationmark.triangle")
         }
@@ -218,7 +227,7 @@ struct ExerciseDetailView: View {
         if exercise.type == "strength" || exercise.type == "duration" || exercise.type == "core" {
             strengthRecorder(exercise, isAllDone: isAllDone)
         } else {
-            cardioRecorder(exercise)
+            cardioSection(exercise)
         }
 
         if let coaching = exercise.coaching, hasCoachingContent(coaching) {
@@ -349,12 +358,15 @@ struct ExerciseDetailView: View {
                 .font(.subheadline).foregroundStyle(FLColor.text40)
 
             if isDuration {
-                // Duration input is handled in durationInputView, so we just show a "Done" button here, 
-                // or we can show a quick duration stepper.
-                // Actually, for duration, maybe they just press "Done" and then edit the seconds.
-                Text("进行中...")
-                    .font(.title3.bold())
+                let elapsed = elapsedSeconds(from: exercise.sets[setIndex].started_at)
+                let target = exercise.targetDurationSeconds ?? 30
+                Text(elapsedFormatted(elapsed))
+                    .font(.system(size: 44, weight: .bold))
+                    .monospacedDigit()
                     .foregroundStyle(FLColor.sky)
+                Text("目标 \(target) 秒")
+                    .font(.subheadline)
+                    .foregroundStyle(FLColor.text40)
             } else {
                 HStack(spacing: 20) {
                     stepperButton(systemName: "minus", size: 56) {
@@ -403,9 +415,12 @@ struct ExerciseDetailView: View {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 pendingSetIndex = setIndex
                 editingSetIndex = nil
+                if isDuration {
+                    durationInput = max(1, elapsedSeconds(from: exercise.sets[setIndex].started_at))
+                }
                 inputPhase = .repsInput
             } label: {
-                Text("做完了 ✓")
+                Text(isDuration ? "结束计时并记录 ✓" : "做完了 ✓")
             }
             .buttonStyle(GreenButtonStyle())
         }
@@ -565,6 +580,41 @@ struct ExerciseDetailView: View {
 
     // MARK: - Cardio
 
+    @ViewBuilder
+    private func cardioSection(_ exercise: LiveExercise) -> some View {
+        if cardioPhase == .timing {
+            cardioTimerView(exercise)
+        } else {
+            cardioRecorder(exercise)
+        }
+    }
+
+    private func cardioTimerView(_ exercise: LiveExercise) -> some View {
+        let elapsed = elapsedSeconds(from: exercise.startedAt)
+        return VStack(spacing: 16) {
+            Text("有氧进行中")
+                .font(.subheadline).foregroundStyle(FLColor.text40)
+
+            Text(elapsedFormatted(elapsed))
+                .font(.system(size: 52, weight: .bold))
+                .monospacedDigit()
+                .foregroundStyle(FLColor.green)
+
+            Text("结束后填写坡度/速度等参数")
+                .font(.caption)
+                .foregroundStyle(FLColor.text40)
+
+            Button {
+                cardioDuration = max(1, Double(elapsed) / 60.0)
+                cardioPhase = .editing
+            } label: {
+                Text("结束计时并填写参数")
+            }
+            .buttonStyle(GreenButtonStyle())
+        }
+        .glassCard(highlight: true)
+    }
+
     private func cardioRecorder(_ exercise: LiveExercise) -> some View {
         VStack(spacing: 20) {
             cardioStepperRow("坡度", value: $cardioIncline, step: 0.5, unit: "%", format: "%.1f")
@@ -585,6 +635,10 @@ struct ExerciseDetailView: View {
                 Text(cardioSaved ? "已保存 ✓" : "保存记录")
             }
             .buttonStyle(GreenButtonStyle())
+
+            Button("继续计时") { cardioPhase = .timing }
+                .font(.subheadline)
+                .foregroundStyle(FLColor.text40)
         }
         .glassCard()
     }
@@ -895,6 +949,9 @@ struct ExerciseDetailView: View {
             cardioDuration = cardio.duration_minutes
             cardioDistance = cardio.distance_km ?? 0
         }
+        if exercise.type == "cardio" {
+            cardioPhase = (exercise.cardioData?.duration_minutes ?? 0) > 0 ? .editing : .timing
+        }
     }
 
     private func formatWeight(_ w: Double) -> String {
@@ -907,6 +964,19 @@ struct ExerciseDetailView: View {
             || (c.tips != nil && !(c.tips!.isEmpty))
             || (c.mistakes != nil && !(c.mistakes!.isEmpty))
             || (c.key_cues != nil && !(c.key_cues!.isEmpty))
+    }
+
+    private func elapsedSeconds(from isoString: String?) -> Int {
+        guard let isoString else { return 0 }
+        let formatter = ISO8601DateFormatter()
+        guard let date = formatter.date(from: isoString) else { return 0 }
+        return max(0, Int(now.timeIntervalSince(date)))
+    }
+
+    private func elapsedFormatted(_ seconds: Int) -> String {
+        let m = seconds / 60
+        let s = seconds % 60
+        return String(format: "%d:%02d", m, s)
     }
 }
 

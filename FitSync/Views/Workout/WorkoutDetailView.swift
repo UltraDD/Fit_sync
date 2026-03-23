@@ -94,8 +94,15 @@ struct WorkoutDetailView: View {
                                 Text("第 \(idx + 1) 组")
                                     .font(.caption).foregroundStyle(.secondary)
                                     .frame(width: 50, alignment: .leading)
-                                Text("\(String(format: "%.1f", s.weight_kg))kg × \(s.reps)")
-                                    .font(.caption.monospacedDigit())
+                                if let duration = s.duration_seconds {
+                                    Text("\(duration)秒")
+                                        .font(.caption.monospacedDigit())
+                                } else {
+                                    let weight = s.weight_kg ?? 0
+                                    let reps = s.reps ?? 0
+                                    Text("\(String(format: "%.1f", weight))kg × \(reps)")
+                                        .font(.caption.monospacedDigit())
+                                }
                                 if let rpe = s.rpe {
                                     Text("RPE \(String(format: "%.0f", rpe))")
                                         .font(.caption2).foregroundStyle(.secondary)

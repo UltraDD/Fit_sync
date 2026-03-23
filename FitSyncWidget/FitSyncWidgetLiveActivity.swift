@@ -53,16 +53,9 @@ struct FitSyncWidgetLiveActivity: Widget {
 
         } dynamicIsland: { context in
             DynamicIsland {
-                // Expanded UI goes here.  Compose the expanded UI through
-                // various regions, like leading/trailing/center/bottom
                 DynamicIslandExpandedRegion(.leading) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "timer")
-                            .foregroundColor(.green)
-                        Text(context.attributes.mode == "transition" ? "换动作" : "休息")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
+                    Image(systemName: "timer")
+                        .foregroundColor(.green)
                     .padding(.top, 8)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
@@ -76,12 +69,13 @@ struct FitSyncWidgetLiveActivity: Widget {
                         if context.attributes.mode == "transition" {
                             if let next = context.attributes.nextExerciseName {
                                 Text("下一步: \(next)")
-                                    .font(.subheadline.bold())
+                                    .font(.caption.bold())
                                     .foregroundColor(.cyan)
+                                    .lineLimit(1)
                             }
                         } else {
-                            Text(context.attributes.exerciseName)
-                                .font(.subheadline)
+                            Text("组间休息")
+                                .font(.caption)
                                 .foregroundColor(.white)
                         }
                         Spacer()
@@ -93,8 +87,10 @@ struct FitSyncWidgetLiveActivity: Widget {
                     .foregroundColor(.green)
             } compactTrailing: {
                 Text(timerInterval: Date()...context.state.endTime, countsDown: true)
-                    .font(.system(.body, design: .monospaced).bold())
+                    .font(.system(.caption2, design: .monospaced).bold())
                     .foregroundColor(.green)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             } minimal: {
                 Image(systemName: "timer")
                     .foregroundColor(.green)

@@ -228,7 +228,7 @@ struct WorkoutHomeView: View {
 
             if let result = todayResult {
                 let sets = result.exercises.reduce(0) { $0 + ($1.sets?.count ?? 0) }
-                let mw = result.exercises.flatMap { $0.sets ?? [] }.map(\.weight_kg).max() ?? 0
+                let mw = result.exercises.flatMap { $0.sets ?? [] }.compactMap(\.weight_kg).max() ?? 0
 
                 HStack(spacing: 0) {
                     completedStat("\(result.duration_minutes)", label: "分钟")

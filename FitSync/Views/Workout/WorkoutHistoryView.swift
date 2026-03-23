@@ -177,7 +177,7 @@ struct WorkoutHistoryView: View {
                             Text(ex.name).font(.subheadline).foregroundStyle(.white)
                             Spacer()
                             if ex.type == "strength", let sets = ex.sets, !sets.isEmpty {
-                                let maxKg = sets.map(\.weight_kg).max() ?? 0
+                                let maxKg = sets.compactMap(\.weight_kg).max() ?? 0
                                 Text("\(sets.count)组 · 最大\(maxKg.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", maxKg) : String(format: "%.1f", maxKg))kg")
                                     .font(.caption).foregroundStyle(FLColor.text40).monospacedDigit()
                             } else if let cardio = ex.cardio_data {
