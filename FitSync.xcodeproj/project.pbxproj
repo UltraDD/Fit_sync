@@ -378,6 +378,7 @@
 				DEVELOPMENT_TEAM = 3MY4NB24MV;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FitSync/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FitLog;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "FitLog 需要读取您的健康数据以供 AI 教练分析";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -412,6 +413,7 @@
 				DEVELOPMENT_TEAM = 3MY4NB24MV;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FitSync/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FitLog;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "FitLog 需要读取您的健康数据以供 AI 教练分析";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
