@@ -5,7 +5,7 @@ struct RestTimerView: View {
     let exerciseName: String
     let setInfo: String
     let mode: RestMode
-    var nextExerciseName: String?
+    var nextExercise: LiveExercise?
     var onDone: () -> Void
 
     enum RestMode { case setRest, transition }
@@ -18,12 +18,12 @@ struct RestTimerView: View {
 
     private var accent: Color { mode == .transition ? FLColor.sky : FLColor.green }
 
-    init(seconds: Int, exerciseName: String, setInfo: String, mode: RestMode = .setRest, nextExerciseName: String? = nil, onDone: @escaping () -> Void) {
+    init(seconds: Int, exerciseName: String, setInfo: String, mode: RestMode = .setRest, nextExercise: LiveExercise? = nil, onDone: @escaping () -> Void) {
         self.seconds = seconds
         self.exerciseName = exerciseName
         self.setInfo = setInfo
         self.mode = mode
-        self.nextExerciseName = nextExerciseName
+        self.nextExercise = nextExercise
         self.onDone = onDone
         self._remaining = State(initialValue: seconds)
         self._total = State(initialValue: seconds)
@@ -79,11 +79,6 @@ struct RestTimerView: View {
                     if mode == .transition {
                         Label("✓ \(exerciseName) 全部完成", systemImage: "checkmark.circle.fill")
                             .font(.subheadline).foregroundStyle(FLColor.text40)
-                        if let next = nextExerciseName {
-                            Text("准备：\(next)")
-                                .font(.title3.bold())
-                                .foregroundStyle(FLColor.sky.opacity(0.8))
-                        }
                     } else {
                         Text(exerciseName).font(.headline)
                         if !setInfo.isEmpty {
@@ -92,6 +87,38 @@ struct RestTimerView: View {
                                 .multilineTextAlignment(.center)
                         }
                     }
+                }
+
+                if let next = nextExercise {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "arrow.forward.circle.fill")
+                                .foregroundStyle(FLColor.sky)
+                            Text("下一步准备 (Up Next)")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(FLColor.sky)
+                        }
+                        
+                        Text(next.name)
+                            .font(.title3.bold())
+                            .foregroundStyle(.white)
+                        
+                        HStack(spacing: 16) {
+                            if next.type == "strength" {
+                                nextInfoItem(title: "目标重量", value: "\(formatWeight(next.targetWeight))kg")
+                                nextInfoItem(title: "目标组数", value: "\(next.targetSets)组")
+                                nextInfoItem(title: "目标次数", value: "\(next.targetReps)次")
+                            } else if next.type == "duration" || next.type == "core" {
+                                nextInfoItem(title: "目标组数", value: "\(next.targetSets)组")
+                                nextInfoItem(title: "目标时长", value: "\(next.targetDurationSeconds ?? 30)秒")
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
+                    .background(Color.white.opacity(0.05))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .padding(.horizontal, 20)
                 }
 
                 Spacer()
@@ -140,10 +167,27 @@ struct RestTimerView: View {
         return String(format: "%d:%02d", m, s)
     }
 
+    private func nextInfoItem(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.caption2).foregroundStyle(FLColor.text40)
+            Text(value).font(.subheadline.bold()).foregroundStyle(.white)
+        }
+    }
+
+    private func formatWeight(_ w: Double) -> String {
+        w.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", w) : String(format: "%.1f", w)
+    }
+
     private func startTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
             recalculate()
         }
+        LiveActivityManager.shared.startTimer(
+            exerciseName: exerciseName,
+            nextExerciseName: nextExercise?.name,
+            mode: mode == .transition ? "transition" : "setRest",
+            seconds: remaining
+        )
     }
 
     private func recalculate() {
@@ -157,11 +201,13 @@ struct RestTimerView: View {
         hasFired = false
         recalculate()
         if timer == nil { startTimer() }
+        LiveActivityManager.shared.updateTimer(seconds: remaining)
     }
 
     private func cleanup() {
         timer?.invalidate()
         timer = nil
+        LiveActivityManager.shared.stopTimer()
     }
 
     private func fireHaptic() {

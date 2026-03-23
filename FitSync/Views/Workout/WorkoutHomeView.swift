@@ -184,7 +184,14 @@ struct WorkoutHomeView: View {
 
     private var planCard: some View {
         Group {
-            if let plan = homeVM.plan {
+            if homeVM.isEvaluatingState {
+                VStack(spacing: 8) {
+                    ProgressView()
+                    Text("正在更新状态...").font(.subheadline).foregroundStyle(FLColor.text40)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+            } else if let plan = homeVM.plan {
                 if homeVM.planCompleted {
                     completedPlanCard(plan)
                 } else {

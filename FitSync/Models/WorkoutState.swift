@@ -19,6 +19,7 @@ struct WorkoutDraft: Codable {
 struct LiveSet: Codable, Equatable {
     var reps: Int
     var weight_kg: Double
+    var duration_seconds: Int?
     var rpe: Double?
     var completed: Bool
     var started_at: String?
@@ -42,6 +43,7 @@ struct LiveExercise: Codable, Identifiable {
     var targetSets: Int
     var targetReps: String
     var targetWeight: Double
+    var targetDurationSeconds: Int?
     var restSeconds: Int
     var transitionRestSeconds: Int
     var notes: String
@@ -99,18 +101,20 @@ final class WorkoutState {
 
         if let plan {
             exercises = plan.exercises.map { pe in
+                let exType = pe.type ?? "strength"
                 let sets = (0..<pe.sets).map { _ in
-                    LiveSet(reps: 0, weight_kg: pe.target_weight_kg, completed: false)
+                    LiveSet(reps: 0, weight_kg: pe.target_weight_kg ?? 0, duration_seconds: pe.target_duration_seconds, completed: false)
                 }
                 return LiveExercise(
                     id: genId(),
                     order: pe.order,
                     name: pe.name,
-                    type: "strength",
+                    type: exType,
                     planned: true,
                     targetSets: pe.sets,
-                    targetReps: pe.target_reps,
-                    targetWeight: pe.target_weight_kg,
+                    targetReps: pe.target_reps ?? "",
+                    targetWeight: pe.target_weight_kg ?? 0,
+                    targetDurationSeconds: pe.target_duration_seconds,
                     restSeconds: pe.rest_seconds,
                     transitionRestSeconds: pe.transition_rest_seconds ?? 90,
                     notes: pe.notes ?? "",
@@ -163,11 +167,14 @@ final class WorkoutState {
         scheduleDraftSave()
     }
 
-    func completeSet(exerciseId: String, setIndex: Int, reps: Int, weight: Double, rpe: Double?) {
+    func completeSet(exerciseId: String, setIndex: Int, reps: Int, weight: Double, duration: Int? = nil, rpe: Double?) {
         guard let idx = exercises.firstIndex(where: { $0.id == exerciseId }) else { return }
         guard setIndex < exercises[idx].sets.count else { return }
         exercises[idx].sets[setIndex].reps = reps
         exercises[idx].sets[setIndex].weight_kg = weight
+        if let duration = duration {
+            exercises[idx].sets[setIndex].duration_seconds = duration
+        }
         exercises[idx].sets[setIndex].rpe = rpe
         exercises[idx].sets[setIndex].completed = true
         exercises[idx].sets[setIndex].completed_at = ISO8601DateFormatter().string(from: Date())
@@ -177,7 +184,8 @@ final class WorkoutState {
     func addSet(to exerciseId: String) {
         guard let idx = exercises.firstIndex(where: { $0.id == exerciseId }) else { return }
         let weight = exercises[idx].targetWeight
-        exercises[idx].sets.append(LiveSet(reps: 0, weight_kg: weight, completed: false))
+        let duration = exercises[idx].targetDurationSeconds
+        exercises[idx].sets.append(LiveSet(reps: 0, weight_kg: weight, duration_seconds: duration, completed: false))
         scheduleDraftSave()
     }
 
@@ -193,9 +201,10 @@ final class WorkoutState {
 
     func addExercise(name: String, type: String) {
         let isCardio = type == "cardio"
+        let isDuration = type == "duration"
         let order = exercises.count + 1
         let sets: [LiveSet] = isCardio ? [] : (0..<3).map { _ in
-            LiveSet(reps: 0, weight_kg: 0, completed: false)
+            LiveSet(reps: 0, weight_kg: 0, duration_seconds: isDuration ? 30 : nil, completed: false)
         }
         exercises.append(LiveExercise(
             id: genId(),
@@ -204,8 +213,9 @@ final class WorkoutState {
             type: type,
             planned: false,
             targetSets: isCardio ? 1 : 3,
-            targetReps: isCardio ? "" : "10-12",
+            targetReps: isCardio ? "" : (isDuration ? "30秒" : "10-12"),
             targetWeight: 0,
+            targetDurationSeconds: isDuration ? 30 : nil,
             restSeconds: 90,
             transitionRestSeconds: 90,
             notes: "",
@@ -290,11 +300,12 @@ final class WorkoutState {
         let today = DateUtils.dateOnly.string(from: now)
 
         let resultExercises: [ResultExercise] = exercises.map { ex in
-            if ex.type == "strength" {
+            if ex.type == "strength" || ex.type == "duration" || ex.type == "core" {
                 let completedSets = ex.sets.filter(\.completed).map { s in
                     StrengthSet(
                         reps: s.reps,
                         weight_kg: s.weight_kg,
+                        duration_seconds: s.duration_seconds,
                         rpe: s.rpe,
                         started_at: s.started_at,
                         completed_at: s.completed_at

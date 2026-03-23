@@ -208,6 +208,7 @@ struct WorkoutFinishView: View {
 
         WorkoutStore.shared.save(result)
         workoutState.clearDraft()
+        homeVM.recheckPlanCompleted()
         localStep = .done
 
         guard homeVM.isConfigured else { isSaving = false; return }
@@ -252,11 +253,15 @@ struct WorkoutFinishView: View {
     }
 
     private func handleDone() {
+        homeVM.isEvaluatingState = true
         workoutState.clearSnapshot()
         workoutState.reset()
         dismiss()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             NotificationCenter.default.post(name: .dismissToHome, object: nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                homeVM.isEvaluatingState = false
+            }
         }
     }
 }

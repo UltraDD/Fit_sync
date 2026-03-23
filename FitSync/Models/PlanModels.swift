@@ -17,9 +17,11 @@ struct PlanJSON: Codable {
 struct PlanExercise: Codable, Identifiable {
     let order: Int
     let name: String
+    let type: String? // "strength", "duration", "core", etc.
     let sets: Int
-    let target_reps: String
-    let target_weight_kg: Double
+    let target_reps: String?
+    let target_weight_kg: Double?
+    let target_duration_seconds: Int?
     let rest_seconds: Int
     let transition_rest_seconds: Int?
     let notes: String?
@@ -29,6 +31,7 @@ struct PlanExercise: Codable, Identifiable {
 }
 
 struct ExerciseCoaching: Codable {
+    let key_cues: [String]?
     let setup: String?
     let execution: String?
     let breathing: String?

@@ -62,8 +62,9 @@ struct ResultExercise: Codable {
 }
 
 struct StrengthSet: Codable {
-    var reps: Int
-    var weight_kg: Double
+    var reps: Int?
+    var weight_kg: Double?
+    var duration_seconds: Int?
     var rpe: Double?
     var started_at: String?
     var completed_at: String?

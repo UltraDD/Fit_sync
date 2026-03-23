@@ -13,6 +13,7 @@ final class HomeViewModel {
     var lastSync: String?
     var connectionStatus: ConnectionStatus = .noConfig
     var planCompleted = false
+    var isEvaluatingState = false
 
     let githubService = GitHubService()
 
@@ -75,6 +76,11 @@ final class HomeViewModel {
         }
         plan = decoded
         return decoded
+    }
+
+    func recheckPlanCompleted() {
+        guard let plan = plan else { return }
+        checkPlanCompleted(plan)
     }
 
     private func checkPlanCompleted(_ plan: PlanJSON) {
