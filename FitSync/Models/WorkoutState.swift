@@ -259,6 +259,7 @@ final class WorkoutState {
         guard let start = startTimestamp else { return }
         elapsedSeconds = Int(Date().timeIntervalSince(start))
         active = false
+        LiveActivityManager.shared.stopTimer()
 
         let snapshot = WorkoutSnapshot(
             plan: plan,
@@ -370,6 +371,7 @@ final class WorkoutState {
         warmupItems = []
         cooldownItems = []
         journalText = ""
+        LiveActivityManager.shared.stopTimer()
         clearDraft()
         clearSnapshot()
     }
