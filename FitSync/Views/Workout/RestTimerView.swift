@@ -193,6 +193,9 @@ struct RestTimerView: View {
     private func recalculate() {
         let left = max(0, Int(ceil(endTime.timeIntervalSinceNow)))
         remaining = left
+        if left > 0 && left % 5 == 0 {
+            LiveActivityManager.shared.updateTimer(seconds: left)
+        }
     }
 
     private func add30Seconds() {
