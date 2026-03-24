@@ -44,6 +44,7 @@ struct LiveExercise: Codable, Identifiable {
     var targetReps: String
     var targetWeight: Double
     var targetDurationSeconds: Int?
+    var targetCardio: TargetCardio?
     var restSeconds: Int
     var transitionRestSeconds: Int
     var notes: String
@@ -115,6 +116,7 @@ final class WorkoutState {
                     targetReps: pe.target_reps ?? "",
                     targetWeight: pe.target_weight_kg ?? 0,
                     targetDurationSeconds: pe.target_duration_seconds,
+                    targetCardio: pe.target_cardio,
                     restSeconds: pe.rest_seconds,
                     transitionRestSeconds: pe.transition_rest_seconds ?? 90,
                     notes: pe.notes ?? "",
@@ -216,6 +218,7 @@ final class WorkoutState {
             targetReps: isCardio ? "" : (isDuration ? "30秒" : "10-12"),
             targetWeight: 0,
             targetDurationSeconds: isDuration ? 30 : nil,
+            targetCardio: nil,
             restSeconds: 90,
             transitionRestSeconds: 90,
             notes: "",
