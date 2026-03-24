@@ -29,11 +29,7 @@ struct WorkoutHomeView: View {
                             planCard
                         }
 
-                        if !workoutState.active, !homeVM.planCompleted,
-                           let plan = homeVM.plan,
-                           let notes = plan.coach_notes, !notes.isEmpty {
-                            coachNotesCard(notes)
-                        }
+                        // coach_notes 是 AI 复盘用的技术备注，不在首页展示
 
                         if !workoutState.active, let last = WorkoutStore.shared.lastWorkout() {
                             if !(homeVM.planCompleted && homeVM.plan?.date == last.date) {
@@ -334,19 +330,6 @@ struct WorkoutHomeView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
-    }
-
-    // MARK: - Coach Notes
-
-    private func coachNotesCard(_ notes: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("🗣️ 教练备注")
-                .font(.caption).foregroundStyle(FLColor.amberLight.opacity(0.6))
-            Text(notes)
-                .font(.subheadline).foregroundStyle(FLColor.text60)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(padding: 16)
     }
 
     // MARK: - Last Workout

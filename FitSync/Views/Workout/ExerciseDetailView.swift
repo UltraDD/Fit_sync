@@ -150,14 +150,48 @@ struct ExerciseDetailView: View {
     // MARK: - Progress Bar
 
     private func targetInfoCard(_ exercise: LiveExercise) -> some View {
-        HStack(spacing: 20) {
-            if exercise.type == "strength" {
-                targetInfoItem(title: "目标重量", value: "\(formatWeight(exercise.targetWeight))", unit: "kg")
-                targetInfoItem(title: "目标组数", value: "\(exercise.targetSets)", unit: "组")
-                targetInfoItem(title: "目标次数", value: exercise.targetReps, unit: "次")
-            } else if exercise.type == "duration" || exercise.type == "core" {
-                targetInfoItem(title: "目标组数", value: "\(exercise.targetSets)", unit: "组")
-                targetInfoItem(title: "目标时长", value: "\(exercise.targetDurationSeconds ?? 30)", unit: "秒")
+        Group {
+            if exercise.type == "cardio", let tc = exercise.targetCardio {
+                cardioTargetCard(tc)
+            } else {
+                HStack(spacing: 20) {
+                    if exercise.type == "strength" {
+                        targetInfoItem(title: "目标重量", value: "\(formatWeight(exercise.targetWeight))", unit: "kg")
+                        targetInfoItem(title: "目标组数", value: "\(exercise.targetSets)", unit: "组")
+                        targetInfoItem(title: "目标次数", value: exercise.targetReps, unit: "次")
+                    } else if exercise.type == "duration" || exercise.type == "core" {
+                        targetInfoItem(title: "目标组数", value: "\(exercise.targetSets)", unit: "组")
+                        targetInfoItem(title: "目标时长", value: "\(exercise.targetDurationSeconds ?? 30)", unit: "秒")
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(Color.white.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+        }
+    }
+
+    private func cardioTargetCard(_ tc: TargetCardio) -> some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 16) {
+                targetInfoItem(title: "时长", value: "\(tc.duration_minutes)", unit: "分钟")
+                if let incline = tc.incline_pct {
+                    targetInfoItem(title: "坡度", value: String(format: "%.0f", incline), unit: "%")
+                }
+                if let speed = tc.speed_kmh {
+                    targetInfoItem(title: "速度", value: String(format: "%.1f", speed), unit: "km/h")
+                }
+            }
+            if let hr = tc.target_hr_range, hr.count == 2 {
+                HStack(spacing: 4) {
+                    Image(systemName: "heart.fill")
+                        .font(.caption2)
+                        .foregroundStyle(FLColor.red.opacity(0.8))
+                    Text("目标心率 \(hr[0])-\(hr[1])")
+                        .font(.caption)
+                        .foregroundStyle(FLColor.text50)
+                }
             }
         }
         .frame(maxWidth: .infinity)
@@ -591,18 +625,55 @@ struct ExerciseDetailView: View {
 
     private func cardioTimerView(_ exercise: LiveExercise) -> some View {
         let elapsed = elapsedSeconds(from: exercise.startedAt)
+        let targetMinutes = exercise.targetCardio?.duration_minutes
+        let targetSeconds = targetMinutes.map { $0 * 60 }
+        let progress: Double? = targetSeconds.map { t in min(1.0, Double(elapsed) / Double(t)) }
+        let reachedTarget = targetSeconds.map { elapsed >= $0 } ?? false
+
         return VStack(spacing: 16) {
             Text("有氧进行中")
                 .font(.subheadline).foregroundStyle(FLColor.text40)
 
-            Text(elapsedFormatted(elapsed))
-                .font(.system(size: 52, weight: .bold))
-                .monospacedDigit()
-                .foregroundStyle(FLColor.green)
+            ZStack {
+                if let progress {
+                    Circle()
+                        .stroke(Color.white.opacity(0.08), lineWidth: 8)
+                        .frame(width: 180, height: 180)
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(reachedTarget ? FLColor.green : FLColor.sky, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .frame(width: 180, height: 180)
+                        .rotationEffect(.degrees(-90))
+                        .animation(.linear(duration: 1), value: progress)
+                }
 
-            Text("结束后填写坡度/速度等参数")
-                .font(.caption)
-                .foregroundStyle(FLColor.text40)
+                VStack(spacing: 4) {
+                    Text(elapsedFormatted(elapsed))
+                        .font(.system(size: 44, weight: .bold))
+                        .monospacedDigit()
+                        .foregroundStyle(reachedTarget ? FLColor.green : .white)
+                    if let target = targetMinutes {
+                        Text("/ \(target):00")
+                            .font(.title3)
+                            .monospacedDigit()
+                            .foregroundStyle(FLColor.text40)
+                    }
+                }
+            }
+
+            if let tc = exercise.targetCardio {
+                HStack(spacing: 16) {
+                    if let incline = tc.incline_pct {
+                        cardioParamChip("坡度", value: String(format: "%.0f%%", incline))
+                    }
+                    if let speed = tc.speed_kmh {
+                        cardioParamChip("速度", value: String(format: "%.1f km/h", speed))
+                    }
+                    if let hr = tc.target_hr_range, hr.count == 2 {
+                        cardioParamChip("心率", value: "\(hr[0])-\(hr[1])")
+                    }
+                }
+            }
 
             Button {
                 cardioDuration = max(1, Double(elapsed) / 60.0)
@@ -613,6 +684,17 @@ struct ExerciseDetailView: View {
             .buttonStyle(GreenButtonStyle())
         }
         .glassCard(highlight: true)
+    }
+
+    private func cardioParamChip(_ label: String, value: String) -> some View {
+        VStack(spacing: 2) {
+            Text(label).font(.caption2).foregroundStyle(FLColor.text30)
+            Text(value).font(.caption.bold()).foregroundStyle(FLColor.text60)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     private func cardioRecorder(_ exercise: LiveExercise) -> some View {
