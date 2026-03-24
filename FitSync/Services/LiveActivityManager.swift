@@ -11,7 +11,8 @@ class LiveActivityManager {
         let attributes = RestTimerAttributes(
             exerciseName: exerciseName,
             nextExerciseName: nextExerciseName,
-            mode: mode
+            mode: mode,
+            totalSeconds: seconds
         )
         
         let contentState = RestTimerAttributes.ContentState(
