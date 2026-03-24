@@ -11,7 +11,7 @@ struct FitSyncWidgetLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     VStack {
                         Spacer(minLength: 0)
-                        progressRing(context: context, size: 36, lineWidth: 3.5)
+                        progressRing(context: context, size: 36, lineWidth: 3.5, showIcon: true)
                         Spacer(minLength: 0)
                     }
                 }
@@ -67,7 +67,7 @@ struct FitSyncWidgetLiveActivity: Widget {
 
     private func lockScreenView(context: ActivityViewContext<RestTimerAttributes>) -> some View {
         HStack(spacing: 16) {
-            progressRing(context: context, size: 44, lineWidth: 4)
+            progressRing(context: context, size: 44, lineWidth: 4, showIcon: true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(context.attributes.mode == "transition" ? "换动作休息" : "组间休息")
@@ -115,7 +115,7 @@ struct FitSyncWidgetLiveActivity: Widget {
 
     // MARK: - Progress Ring
 
-    private func progressRing(context: ActivityViewContext<RestTimerAttributes>, size: CGFloat, lineWidth: CGFloat) -> some View {
+    private func progressRing(context: ActivityViewContext<RestTimerAttributes>, size: CGFloat, lineWidth: CGFloat, showIcon: Bool = false) -> some View {
         let total = max(context.attributes.totalSeconds, 1)
         let remaining = max(context.state.remainingSeconds, 0)
         let progress = Double(remaining) / Double(total)
@@ -127,9 +127,11 @@ struct FitSyncWidgetLiveActivity: Widget {
                 .trim(from: 0, to: progress)
                 .stroke(Color.green, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
-            Image(systemName: "timer")
-                .font(.system(size: size * 0.35))
-                .foregroundColor(.green)
+            if showIcon {
+                Image(systemName: "timer")
+                    .font(.system(size: size * 0.3))
+                    .foregroundColor(.green)
+            }
         }
         .frame(width: size, height: size)
     }
