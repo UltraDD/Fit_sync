@@ -54,11 +54,7 @@ struct FitSyncWidgetLiveActivity: Widget {
             } compactLeading: {
                 progressRing(context: context, size: 18, lineWidth: 2.5)
             } compactTrailing: {
-                Text(timerInterval: Date()...context.state.endTime, countsDown: true)
-                    .font(.system(.caption, design: .rounded).bold())
-                    .monospacedDigit()
-                    .foregroundColor(.green)
-                    .frame(minWidth: 34)
+                compactTimer(remaining: context.state.remainingSeconds)
             } minimal: {
                 progressRing(context: context, size: 22, lineWidth: 2.5)
             }
@@ -102,6 +98,19 @@ struct FitSyncWidgetLiveActivity: Widget {
         .padding()
         .activityBackgroundTint(Color.black.opacity(0.85))
         .activitySystemActionForegroundColor(Color.green)
+    }
+
+    // MARK: - Compact Timer
+
+    private func compactTimer(remaining: Int) -> some View {
+        let m = remaining / 60
+        let s = remaining % 60
+        let display = m > 0 ? "\(m):\(String(format: "%02d", s))" : "\(s)s"
+        return Text(display)
+            .font(.system(.caption2, design: .rounded).bold())
+            .monospacedDigit()
+            .foregroundColor(.green)
+            .fixedSize()
     }
 
     // MARK: - Progress Ring
