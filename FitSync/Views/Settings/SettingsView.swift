@@ -66,6 +66,15 @@ struct SettingsView: View {
             }
 
             Section {
+                HStack {
+                    Text("版本")
+                    Spacer()
+                    Text("\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"))")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section {
                 Button {
                     save()
                     testConnection()
