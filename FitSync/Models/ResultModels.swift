@@ -50,7 +50,9 @@ struct ResultJSON: Codable {
     }
 }
 
-struct ResultExercise: Codable {
+struct ResultExercise: Codable, Identifiable {
+    var id: UUID
+
     let order: Int
     let name: String
     let type: String
@@ -59,15 +61,70 @@ struct ResultExercise: Codable {
     var sets: [StrengthSet]?
     var cardio_data: CardioData?
     var notes: String?
+
+    init(order: Int, name: String, type: String, planned: Bool, started_at: String? = nil, sets: [StrengthSet]? = nil, cardio_data: CardioData? = nil, notes: String? = nil) {
+        self.id = UUID()
+        self.order = order
+        self.name = name
+        self.type = type
+        self.planned = planned
+        self.started_at = started_at
+        self.sets = sets
+        self.cardio_data = cardio_data
+        self.notes = notes
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case order, name, type, planned, started_at, sets, cardio_data, notes
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = UUID()
+        self.order = try c.decode(Int.self, forKey: .order)
+        self.name = try c.decode(String.self, forKey: .name)
+        self.type = try c.decode(String.self, forKey: .type)
+        self.planned = try c.decodeIfPresent(Bool.self, forKey: .planned) ?? true
+        self.started_at = try c.decodeIfPresent(String.self, forKey: .started_at)
+        self.sets = try c.decodeIfPresent([StrengthSet].self, forKey: .sets)
+        self.cardio_data = try c.decodeIfPresent(CardioData.self, forKey: .cardio_data)
+        self.notes = try c.decodeIfPresent(String.self, forKey: .notes)
+    }
 }
 
-struct StrengthSet: Codable {
+struct StrengthSet: Codable, Identifiable {
+    let id: UUID
     var reps: Int?
     var weight_kg: Double?
     var duration_seconds: Int?
     var rpe: Double?
     var started_at: String?
     var completed_at: String?
+
+    init(reps: Int? = nil, weight_kg: Double? = nil, duration_seconds: Int? = nil, rpe: Double? = nil, started_at: String? = nil, completed_at: String? = nil) {
+        self.id = UUID()
+        self.reps = reps
+        self.weight_kg = weight_kg
+        self.duration_seconds = duration_seconds
+        self.rpe = rpe
+        self.started_at = started_at
+        self.completed_at = completed_at
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case reps, weight_kg, duration_seconds, rpe, started_at, completed_at
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = UUID()
+        self.reps = try c.decodeIfPresent(Int.self, forKey: .reps)
+        self.weight_kg = try c.decodeIfPresent(Double.self, forKey: .weight_kg)
+        self.duration_seconds = try c.decodeIfPresent(Int.self, forKey: .duration_seconds)
+        self.rpe = try c.decodeIfPresent(Double.self, forKey: .rpe)
+        self.started_at = try c.decodeIfPresent(String.self, forKey: .started_at)
+        self.completed_at = try c.decodeIfPresent(String.self, forKey: .completed_at)
+    }
 }
 
 struct CardioData: Codable {
@@ -77,7 +134,9 @@ struct CardioData: Codable {
     var distance_km: Double?
 }
 
-struct ChecklistResult: Codable {
+struct ChecklistResult: Codable, Identifiable {
     let action: String
     var done: Bool
+
+    var id: String { action }
 }

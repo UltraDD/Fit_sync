@@ -74,7 +74,7 @@ struct WorkoutDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("训练内容").font(.headline)
 
-            ForEach(Array(workout.exercises.enumerated()), id: \.offset) { _, ex in
+            ForEach(workout.exercises) { ex in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(ex.name).font(.subheadline.bold())
@@ -89,7 +89,7 @@ struct WorkoutDetailView: View {
                     }
 
                     if let sets = ex.sets, !sets.isEmpty {
-                        ForEach(Array(sets.enumerated()), id: \.offset) { idx, s in
+                        ForEach(Array(sets.enumerated()), id: \.element.id) { idx, s in
                             HStack {
                                 Text("第 \(idx + 1) 组")
                                     .font(.caption).foregroundStyle(.secondary)
@@ -141,7 +141,7 @@ struct WorkoutDetailView: View {
     private func checklistSection(_ title: String, items: [ChecklistResult], accentColor: Color) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(.headline)
-            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+            ForEach(items) { item in
                 HStack {
                     Image(systemName: item.done ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(item.done ? accentColor : .secondary)

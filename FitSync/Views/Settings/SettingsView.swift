@@ -19,7 +19,7 @@ struct SettingsView: View {
         Form {
             Section("GitHub 配置") {
                 TextField("仓库（如 username/My_life）", text: $repoFullName)
-                    .autocapitalization(.none)
+                    .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
 
                 SecureField("Personal Access Token", text: $token)
@@ -50,11 +50,19 @@ struct SettingsView: View {
 
             Section("路径配置") {
                 TextField("计划目录（outbox）", text: $outboxPath)
-                    .autocapitalization(.none)
+                    .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 TextField("上传目录（inbox）", text: $inboxPath)
-                    .autocapitalization(.none)
+                    .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+            }
+
+            Section {
+                NavigationLink {
+                    HealthSyncView(syncVM: SyncViewModel())
+                } label: {
+                    Label("健康数据同步", systemImage: "heart.text.clipboard")
+                }
             }
 
             Section {

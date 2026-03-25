@@ -7,6 +7,11 @@ enum DateUtils {
         return formatter
     }()
 
+    static let iso8601Basic: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        return formatter
+    }()
+
     static let dateOnly: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"

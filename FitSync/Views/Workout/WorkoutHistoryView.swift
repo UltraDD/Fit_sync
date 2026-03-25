@@ -172,7 +172,7 @@ struct WorkoutHistoryView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Rectangle().fill(FLColor.cardBorder).frame(height: 1)
 
-                    ForEach(Array(workout.exercises.enumerated()), id: \.offset) { _, ex in
+                    ForEach(workout.exercises) { ex in
                         HStack {
                             Text(ex.name).font(.subheadline).foregroundStyle(.white)
                             Spacer()

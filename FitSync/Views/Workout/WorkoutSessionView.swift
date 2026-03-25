@@ -89,11 +89,16 @@ struct WorkoutSessionView: View {
             }
         }
         .navigationDestination(isPresented: $navigateToFinish) {
-            WorkoutFinishView(workoutState: workoutState, homeVM: homeVM)
+            WorkoutFinishView(workoutState: workoutState, homeVM: homeVM) {
+                dismiss()
+            }
         }
         .navigationDestination(isPresented: $navigateToExercise) {
             if let id = selectedExerciseId {
-                ExerciseDetailView(workoutState: workoutState, exerciseId: id)
+                ExerciseDetailView(workoutState: workoutState, exerciseId: id) { nextId in
+                    selectedExerciseId = nextId
+                    navigateToExercise = true
+                }
             }
         }
         .sheet(isPresented: $showJournal) { journalSheet }
@@ -112,15 +117,6 @@ struct WorkoutSessionView: View {
             if newValue == 10800 {
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .navigateToExercise)) { notification in
-            if let nextId = notification.object as? String {
-                selectedExerciseId = nextId
-                navigateToExercise = true
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .dismissToHome)) { _ in
-            dismiss()
         }
         .onDisappear {
             timer?.invalidate()
@@ -176,7 +172,7 @@ struct WorkoutSessionView: View {
                     .font(.caption).foregroundStyle(FLColor.text40)
             }
 
-            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 Button {
                     toggle(index)
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()

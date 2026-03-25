@@ -16,7 +16,8 @@ struct WorkoutDraft: Codable {
     let currentExerciseId: String?
 }
 
-struct LiveSet: Codable, Equatable {
+struct LiveSet: Codable, Equatable, Identifiable {
+    let id: UUID
     var reps: Int
     var weight_kg: Double
     var duration_seconds: Int?
@@ -24,6 +25,17 @@ struct LiveSet: Codable, Equatable {
     var completed: Bool
     var started_at: String?
     var completed_at: String?
+
+    init(id: UUID = UUID(), reps: Int, weight_kg: Double, duration_seconds: Int? = nil, rpe: Double? = nil, completed: Bool, started_at: String? = nil, completed_at: String? = nil) {
+        self.id = id
+        self.reps = reps
+        self.weight_kg = weight_kg
+        self.duration_seconds = duration_seconds
+        self.rpe = rpe
+        self.completed = completed
+        self.started_at = started_at
+        self.completed_at = completed_at
+    }
 }
 
 struct LiveChecklistItem: Codable, Identifiable {
@@ -157,7 +169,7 @@ final class WorkoutState {
         currentExerciseId = exerciseId
         if let idx = exercises.firstIndex(where: { $0.id == exerciseId }),
            exercises[idx].startedAt == nil {
-            exercises[idx].startedAt = ISO8601DateFormatter().string(from: Date())
+            exercises[idx].startedAt = DateUtils.iso8601Basic.string(from: Date())
         }
         scheduleDraftSave()
     }
@@ -165,7 +177,7 @@ final class WorkoutState {
     func startSet(exerciseId: String, setIndex: Int) {
         guard let idx = exercises.firstIndex(where: { $0.id == exerciseId }) else { return }
         guard setIndex < exercises[idx].sets.count else { return }
-        exercises[idx].sets[setIndex].started_at = ISO8601DateFormatter().string(from: Date())
+        exercises[idx].sets[setIndex].started_at = DateUtils.iso8601Basic.string(from: Date())
         scheduleDraftSave()
     }
 
@@ -179,7 +191,7 @@ final class WorkoutState {
         }
         exercises[idx].sets[setIndex].rpe = rpe
         exercises[idx].sets[setIndex].completed = true
-        exercises[idx].sets[setIndex].completed_at = ISO8601DateFormatter().string(from: Date())
+        exercises[idx].sets[setIndex].completed_at = DateUtils.iso8601Basic.string(from: Date())
         scheduleDraftSave()
     }
 

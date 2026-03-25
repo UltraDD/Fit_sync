@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 final class WorkoutStore {
     static let shared = WorkoutStore()
 

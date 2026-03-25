@@ -3,6 +3,7 @@ import SwiftUI
 struct WorkoutFinishView: View {
     @Bindable var workoutState: WorkoutState
     var homeVM: HomeViewModel
+    var onDismissToHome: (() -> Void)?
     @State private var journal: String = ""
     @State private var isSaving = false
     @State private var localStep: StepState = .idle
@@ -258,7 +259,7 @@ struct WorkoutFinishView: View {
         workoutState.reset()
         dismiss()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            NotificationCenter.default.post(name: .dismissToHome, object: nil)
+            onDismissToHome?()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 homeVM.isEvaluatingState = false
             }
