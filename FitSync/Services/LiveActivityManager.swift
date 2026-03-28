@@ -5,19 +5,20 @@ class LiveActivityManager {
     static let shared = LiveActivityManager()
     private var currentActivity: Activity<RestTimerAttributes>?
 
-    func startTimer(exerciseName: String, nextExerciseName: String?, mode: String, seconds: Int) {
+    func startTimer(exerciseName: String, nextExerciseName: String?, mode: String, endTime: Date, totalSeconds: Int) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         
         let attributes = RestTimerAttributes(
             exerciseName: exerciseName,
             nextExerciseName: nextExerciseName,
             mode: mode,
-            totalSeconds: seconds
+            totalSeconds: totalSeconds
         )
         
+        let remaining = max(0, Int(ceil(endTime.timeIntervalSinceNow)))
         let contentState = RestTimerAttributes.ContentState(
-            endTime: Date().addingTimeInterval(TimeInterval(seconds)),
-            remainingSeconds: seconds
+            endTime: endTime,
+            remainingSeconds: remaining
         )
         
         do {
@@ -30,12 +31,13 @@ class LiveActivityManager {
         }
     }
 
-    func updateTimer(seconds: Int) {
+    func updateTimer(endTime: Date) {
         guard let activity = currentActivity else { return }
         
+        let remaining = max(0, Int(ceil(endTime.timeIntervalSinceNow)))
         let contentState = RestTimerAttributes.ContentState(
-            endTime: Date().addingTimeInterval(TimeInterval(seconds)),
-            remainingSeconds: seconds
+            endTime: endTime,
+            remainingSeconds: remaining
         )
         
         Task {

@@ -18,7 +18,7 @@ struct FitSyncWidgetLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack {
                         Spacer(minLength: 0)
-                        Text(timerInterval: Date()...context.state.endTime, countsDown: true)
+                        Text(timerInterval: Date()...max(Date(), context.state.endTime), countsDown: true)
                             .font(.system(.title2, design: .rounded).bold())
                             .monospacedDigit()
                             .foregroundColor(.green)
@@ -54,7 +54,11 @@ struct FitSyncWidgetLiveActivity: Widget {
             } compactLeading: {
                 progressRing(context: context, size: 18, lineWidth: 2.5)
             } compactTrailing: {
-                compactTimer(remaining: context.state.remainingSeconds)
+                Text(timerInterval: Date()...max(Date(), context.state.endTime), countsDown: true)
+                    .font(.system(.caption2, design: .rounded).bold())
+                    .monospacedDigit()
+                    .foregroundColor(.green)
+                    .fixedSize()
             } minimal: {
                 progressRing(context: context, size: 22, lineWidth: 2.5)
             }
@@ -89,28 +93,16 @@ struct FitSyncWidgetLiveActivity: Widget {
 
             Spacer()
 
-            Text(timerInterval: Date()...context.state.endTime, countsDown: true)
+            Text(timerInterval: Date()...max(Date(), context.state.endTime), countsDown: true)
                 .font(.system(.title, design: .rounded).bold())
                 .monospacedDigit()
                 .foregroundColor(.green)
                 .contentTransition(.numericText())
+                .frame(minWidth: 70, alignment: .trailing)
         }
         .padding()
         .activityBackgroundTint(Color.black.opacity(0.85))
         .activitySystemActionForegroundColor(Color.green)
-    }
-
-    // MARK: - Compact Timer
-
-    private func compactTimer(remaining: Int) -> some View {
-        let m = remaining / 60
-        let s = remaining % 60
-        let display = m > 0 ? "\(m):\(String(format: "%02d", s))" : "\(s)s"
-        return Text(display)
-            .font(.system(.caption2, design: .rounded).bold())
-            .monospacedDigit()
-            .foregroundColor(.green)
-            .fixedSize()
     }
 
     // MARK: - Progress Ring

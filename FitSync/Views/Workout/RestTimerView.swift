@@ -10,6 +10,7 @@ struct RestTimerView: View {
 
     enum RestMode { case setRest, transition }
 
+    @Environment(\.scenePhase) private var scenePhase
     @State private var remaining: Int
     @State private var total: Int
     @State private var timer: Timer?
@@ -144,6 +145,12 @@ struct RestTimerView: View {
         }
         .onAppear { startTimer() }
         .onDisappear { cleanup() }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                recalculate()
+                LiveActivityManager.shared.updateTimer(endTime: endTime)
+            }
+        }
         .onChange(of: remaining) { _, newValue in
             if newValue <= 0 && !hasFired {
                 hasFired = true
@@ -186,7 +193,8 @@ struct RestTimerView: View {
             exerciseName: exerciseName,
             nextExerciseName: nextExercise?.name,
             mode: mode == .transition ? "transition" : "setRest",
-            seconds: remaining
+            endTime: endTime,
+            totalSeconds: total
         )
     }
 
@@ -194,7 +202,7 @@ struct RestTimerView: View {
         let left = max(0, Int(ceil(endTime.timeIntervalSinceNow)))
         remaining = left
         if left > 0 && left % 5 == 0 {
-            LiveActivityManager.shared.updateTimer(seconds: left)
+            LiveActivityManager.shared.updateTimer(endTime: endTime)
         }
     }
 
@@ -204,7 +212,7 @@ struct RestTimerView: View {
         hasFired = false
         recalculate()
         if timer == nil { startTimer() }
-        LiveActivityManager.shared.updateTimer(seconds: remaining)
+        LiveActivityManager.shared.updateTimer(endTime: endTime)
     }
 
     private func cleanup() {
