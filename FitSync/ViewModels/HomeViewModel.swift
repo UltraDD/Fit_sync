@@ -100,13 +100,9 @@ final class HomeViewModel {
                 .sorted { $0.name > $1.name }
 
             let recentFiles = Array(jsonFiles.prefix(20))
-            let localIds = Set(WorkoutStore.shared.history.map { "\($0.date)|\($0.start_time)" })
+            var localIds = Set(WorkoutStore.shared.history.map { "\($0.date)|\($0.start_time)" })
 
             for file in recentFiles {
-                let datePrefix = String(file.name.prefix(10))
-                let hasLocal = WorkoutStore.shared.history.contains { $0.date == datePrefix }
-                if hasLocal { continue }
-
                 guard let data = try await githubService.fetchFileContent(
                     owner: githubOwner, repo: githubRepo,
                     token: githubToken, path: file.path) else { continue }
@@ -114,6 +110,7 @@ final class HomeViewModel {
                 if let result = try? JSONDecoder().decode(ResultJSON.self, from: data) {
                     let id = "\(result.date)|\(result.start_time)"
                     if !localIds.contains(id) {
+                        localIds.insert(id)
                         WorkoutStore.shared.save(result)
                     }
                 }

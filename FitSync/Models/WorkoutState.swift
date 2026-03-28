@@ -206,11 +206,13 @@ final class WorkoutState {
     func updateCardio(exerciseId: String, data: CardioData) {
         guard let idx = exercises.firstIndex(where: { $0.id == exerciseId }) else { return }
         exercises[idx].cardioData = data
+        scheduleDraftSave()
     }
 
     func updateExerciseNotes(exerciseId: String, notes: String) {
         guard let idx = exercises.firstIndex(where: { $0.id == exerciseId }) else { return }
         exercises[idx].exerciseNotes = notes
+        scheduleDraftSave()
     }
 
     func addExercise(name: String, type: String) {
@@ -254,11 +256,13 @@ final class WorkoutState {
     func toggleWarmup(at index: Int) {
         guard index < warmupItems.count else { return }
         warmupItems[index].done.toggle()
+        scheduleDraftSave()
     }
 
     func toggleCooldown(at index: Int) {
         guard index < cooldownItems.count else { return }
         cooldownItems[index].done.toggle()
+        scheduleDraftSave()
     }
 
     func getNextExerciseId(after currentId: String) -> String? {
