@@ -101,7 +101,9 @@ struct WorkoutHistoryView: View {
         let grouped = Dictionary(grouping: history) { w in
             String(w.date.prefix(7))
         }
-        return grouped.sorted { $0.key > $1.key }.map { (month: $0.key, workouts: $0.value) }
+        return grouped.sorted { $0.key > $1.key }.map { (month: $0.key, workouts: $0.value.sorted { a, b in
+            a.date > b.date || (a.date == b.date && a.start_time > b.start_time)
+        }) }
     }
 
     private func monthLabel(_ ym: String) -> String {
