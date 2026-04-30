@@ -99,10 +99,9 @@ final class HomeViewModel {
             let jsonFiles = files.filter { $0.name.contains(".json") }
                 .sorted { $0.name > $1.name }
 
-            let recentFiles = Array(jsonFiles.prefix(20))
             var localIds = Set(WorkoutStore.shared.history.map { "\($0.date)|\($0.start_time)" })
 
-            for file in recentFiles {
+            for file in jsonFiles {
                 guard let data = try await githubService.fetchFileContent(
                     owner: githubOwner, repo: githubRepo,
                     token: githubToken, path: file.path) else { continue }

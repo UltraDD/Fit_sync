@@ -22,7 +22,6 @@ final class WorkoutStore {
         } else {
             history.insert(result, at: 0)
         }
-        if history.count > 200 { history = Array(history.prefix(200)) }
         persist()
     }
 
