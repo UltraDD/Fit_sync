@@ -414,6 +414,7 @@ struct ExerciseDetailView: View {
 
             Button {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                commitActiveManualEdit()
                 pendingSetIndex = setIndex
                 editingSetIndex = nil
                 if isDuration {
@@ -507,7 +508,10 @@ struct ExerciseDetailView: View {
                 }
             }
 
-            Button("确认") { inputPhase = .rpeSelect }
+            Button("确认") {
+                commitActiveManualEdit()
+                inputPhase = .rpeSelect
+            }
                 .buttonStyle(GreenButtonStyle())
         }
         .glassCard(highlight: true)
@@ -554,7 +558,10 @@ struct ExerciseDetailView: View {
                 }
             }
 
-            Button("确认") { inputPhase = .rpeSelect }
+            Button("确认") {
+                commitActiveManualEdit()
+                inputPhase = .rpeSelect
+            }
                 .buttonStyle(GreenButtonStyle())
         }
         .glassCard(highlight: true)
@@ -649,6 +656,7 @@ struct ExerciseDetailView: View {
     // MARK: - Actions
 
     private func confirmSet(rpe: Double?) {
+        commitActiveManualEdit()
         let isDuration = exercise?.type == "duration" || exercise?.type == "core"
         workoutState.completeSet(
             exerciseId: exerciseId, setIndex: pendingSetIndex,
@@ -681,6 +689,19 @@ struct ExerciseDetailView: View {
                 )
             }
         }
+    }
+
+    private func commitActiveManualEdit() {
+        if editingWeight {
+            commitWeightEdit()
+        }
+        if editingReps {
+            commitRepsEdit()
+        }
+        if editingDuration {
+            commitDurationEdit()
+        }
+        manualInputFocused = false
     }
 
     private func commitWeightEdit() {
@@ -745,4 +766,3 @@ extension ExerciseDetailView.RestConfig: Identifiable {
 extension ExerciseDetailView.TransitionRestConfig: Identifiable {
     var id: String { "transition-\(nextExercise.id)" }
 }
-

@@ -13,6 +13,7 @@
 |---|------|------|--------|------|
 | 1 | 2026-03-28 | updateCardio/updateExerciseNotes/toggleWarmup/toggleCooldown 不持久化草稿，force-kill 丢数据 | 🚫 Important | ✅ 已修复 |
 | 2 | 2026-03-28 | syncInboxResults 用 date-only 快捷过滤，跳过同日第二次训练 | 🚫 Important | ✅ 已修复 |
+| 3 | 2026-06-09 | 组记录数字键盘输入依赖失焦提交，可能在点确认时保存旧的计划重量/次数/时长 | 🚫 Important | ✅ 已修复 |
 
 ## 修复详情
 ### #1 草稿持久化
@@ -24,6 +25,11 @@
 - **修复**：移除 date-only `hasLocal` 快捷过滤，改用 `var localIds` composite key（`date|start_time`），循环内同步 `insert` 防同批重复
 - **文件**：`FitSync/ViewModels/HomeViewModel.swift`
 - **验证**：现在与 `WorkoutHistoryView.syncFromGitHub` 行为一致
+
+### #3 组记录数字输入提交
+- **修复**：在重量页“做完了”、次数/时长“确认”、RPE 最终保存前调用 `commitActiveManualEdit()`，不再依赖数字键盘失焦事件先触发
+- **文件**：`FitSync/Views/Workout/ExerciseDetailView.swift`
+- **验证**：静态追踪确认 `completeSet` 收到的是已提交的 `currentWeight` / `repsInput` / `durationInput`；Windows 环境无法运行 Xcode 构建
 
 ## 上线就绪判定
 - [x] 关键流程全部追踪通过
