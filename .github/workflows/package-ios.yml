@@ -1,0 +1,41 @@
+name: Package iOS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  simulator-package:
+    name: Build simulator app
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build Release app
+        run: |
+          xcodebuild build \
+            -scheme FitSync \
+            -destination "generic/platform=iOS Simulator" \
+            -configuration Release \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package app artifact
+        run: |
+          APP_PATH="DerivedData/Build/Products/Release-iphonesimulator/FitSync.app"
+          test -d "$APP_PATH"
+          mkdir -p artifacts
+          ditto -c -k --keepParent "$APP_PATH" "artifacts/FitSync-simulator-${GITHUB_SHA::7}.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FitSync-simulator-${{ github.sha }}
+          path: artifacts/*.zip
+          if-no-files-found: error
+          retention-days: 14
