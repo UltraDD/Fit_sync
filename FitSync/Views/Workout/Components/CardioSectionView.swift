@@ -20,10 +20,18 @@ struct CardioSectionView: View {
     enum CardioPhase { case timing, editing }
 
     var body: some View {
-        if cardioPhase == .timing {
-            cardioTimerView
-        } else {
-            cardioRecorderView
+        Group {
+            if cardioPhase == .timing {
+                cardioTimerView
+            } else {
+                cardioRecorderView
+            }
+        }
+        .onAppear {
+            initializeFrom(exercise)
+        }
+        .onChange(of: exercise.id) { _, _ in
+            initializeFrom(exercise)
         }
     }
 
@@ -82,7 +90,11 @@ struct CardioSectionView: View {
             }
 
             Button {
-                cardioDuration = max(1, Double(elapsed) / 60.0)
+                if elapsed >= 60 {
+                    cardioDuration = max(1, Double(elapsed) / 60.0)
+                } else {
+                    cardioDuration = plannedDurationMinutes
+                }
                 cardioPhase = .editing
             } label: {
                 Text("结束计时并填写参数")
@@ -205,12 +217,26 @@ struct CardioSectionView: View {
         return String(format: "%d:%02d", m, s)
     }
 
-    func initializeFrom(_ exercise: LiveExercise) {
-        if let cardio = exercise.cardioData {
+    private var plannedDurationMinutes: Double {
+        Double(exercise.targetCardio?.duration_minutes ?? Int(cardioDuration))
+    }
+
+    private func initializeFrom(_ exercise: LiveExercise) {
+        if let cardio = exercise.cardioData, cardio.duration_minutes > 0 {
             cardioIncline = cardio.incline_pct ?? 0
             cardioSpeed = cardio.speed_kmh ?? 6
             cardioDuration = cardio.duration_minutes
             cardioDistance = cardio.distance_km ?? 0
+        } else if let target = exercise.targetCardio {
+            cardioIncline = target.incline_pct ?? 0
+            cardioSpeed = target.speed_kmh ?? 6
+            cardioDuration = Double(target.duration_minutes)
+            cardioDistance = 0
+        } else {
+            cardioIncline = 0
+            cardioSpeed = 6
+            cardioDuration = 20
+            cardioDistance = 0
         }
         cardioPhase = (exercise.cardioData?.duration_minutes ?? 0) > 0 ? .editing : .timing
     }

@@ -17,6 +17,7 @@ struct WorkoutSessionView: View {
     @State private var confirmEnd = false
     @State private var confirmReady = false
     @State private var confirmProgress: CGFloat = 0
+    @State private var confirmGeneration = 0
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -90,6 +91,9 @@ struct WorkoutSessionView: View {
         }
         .navigationDestination(isPresented: $navigateToFinish) {
             WorkoutFinishView(workoutState: workoutState, homeVM: homeVM) {
+                showAddExercise = false
+                showJournal = false
+                showTimerSheet = false
                 dismiss()
             }
         }
@@ -99,6 +103,7 @@ struct WorkoutSessionView: View {
                     selectedExerciseId = nextId
                     navigateToExercise = true
                 }
+                .id(id)
             }
         }
         .sheet(isPresented: $showJournal) { journalSheet }
@@ -108,7 +113,7 @@ struct WorkoutSessionView: View {
         .sheet(isPresented: $showTimerSheet) { timerDetailSheet }
         .onAppear {
             startTimer()
-            if workoutState.exercises.isEmpty && workoutState.plan == nil {
+            if workoutState.active && workoutState.exercises.isEmpty && workoutState.plan == nil {
                 batchMode = true
                 showAddExercise = true
             }
@@ -257,13 +262,11 @@ struct WorkoutSessionView: View {
     }
 
     private func exerciseCard(_ exercise: LiveExercise) -> some View {
-        let completedCount = exercise.type == "strength"
-            ? exercise.sets.filter(\.completed).count
-            : ((exercise.cardioData?.duration_minutes ?? 0) > 0 ? 1 : 0)
-        let totalCount = exercise.type == "strength" ? exercise.sets.count : 1
-        let isDone = completedCount >= totalCount && totalCount > 0
+        let completedCount = exercise.completedUnits
+        let totalCount = exercise.totalUnits
+        let isDone = exercise.isComplete
         let isCurrent = exercise.id == workoutState.currentExerciseId
-        let maxW = exercise.type == "strength"
+        let maxW = exercise.isSetBased
             ? exercise.sets.filter(\.completed).map(\.weight_kg).max() ?? 0
             : 0
 
@@ -297,7 +300,7 @@ struct WorkoutSessionView: View {
                     }
                 }
                 HStack(spacing: 8) {
-                    if exercise.type == "strength" {
+                    if exercise.isSetBased {
                         Text("\(completedCount)/\(totalCount) 组")
                             .font(.caption).foregroundStyle(FLColor.text40)
                         if maxW > 0 {
@@ -336,7 +339,7 @@ struct WorkoutSessionView: View {
         HStack {
             Text(exercise.name).font(.body).foregroundStyle(.white)
             Spacer()
-            Text("\(exercise.completedSets)/\(exercise.sets.count) 组")
+            Text("\(exercise.completedUnits)/\(exercise.totalUnits) \(exercise.isSetBased ? "组" : "项")")
                 .font(.caption).foregroundStyle(FLColor.text40)
         }
         .listRowBackground(Color.white.opacity(0.05))
@@ -372,11 +375,15 @@ struct WorkoutSessionView: View {
                     confirmEnd = true
                     confirmReady = false
                     confirmProgress = 0
+                    confirmGeneration += 1
+                    let generation = confirmGeneration
                     withAnimation(.linear(duration: 2)) {
                         confirmProgress = 1
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        confirmReady = true
+                        if confirmEnd && confirmGeneration == generation {
+                            confirmReady = true
+                        }
                     }
                 } label: {
                     Text("结束训练")
@@ -388,7 +395,9 @@ struct WorkoutSessionView: View {
                         handleEndWorkout()
                     } else {
                         confirmEnd = false
+                        confirmReady = false
                         confirmProgress = 0
+                        confirmGeneration += 1
                     }
                 } label: {
                     HStack(spacing: 10) {
@@ -512,6 +521,9 @@ struct WorkoutSessionView: View {
     // MARK: - Helpers
 
     private func handleEndWorkout() {
+        showAddExercise = false
+        showJournal = false
+        showTimerSheet = false
         workoutState.endWorkout()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             navigateToFinish = true
@@ -519,6 +531,7 @@ struct WorkoutSessionView: View {
     }
 
     private func startTimer() {
+        timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             workoutState.tick()
         }

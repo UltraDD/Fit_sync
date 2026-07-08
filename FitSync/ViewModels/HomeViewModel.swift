@@ -7,6 +7,7 @@ enum ConnectionStatus {
 }
 
 @Observable
+@MainActor
 final class HomeViewModel {
     var plan: PlanJSON?
     var syncing = false

@@ -108,7 +108,7 @@ struct RestTimerView: View {
                             if next.type == "strength" {
                                 nextInfoItem(title: "目标重量", value: "\(formatWeight(next.targetWeight))kg")
                                 nextInfoItem(title: "目标组数", value: "\(next.targetSets)组")
-                                nextInfoItem(title: "目标次数", value: "\(next.targetReps)次")
+                                nextInfoItem(title: "目标次数", value: next.targetRepsWithUnit)
                             } else if next.type == "duration" || next.type == "core" {
                                 nextInfoItem(title: "目标组数", value: "\(next.targetSets)组")
                                 nextInfoItem(title: "目标时长", value: "\(next.targetDurationSeconds ?? 30)秒")
@@ -148,7 +148,7 @@ struct RestTimerView: View {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 recalculate()
-                LiveActivityManager.shared.updateTimer(endTime: endTime)
+                LiveActivityManager.shared.updateTimer(endTime: endTime, totalSeconds: total)
             }
         }
         .onChange(of: remaining) { _, newValue in
@@ -202,7 +202,7 @@ struct RestTimerView: View {
         let left = max(0, Int(ceil(endTime.timeIntervalSinceNow)))
         remaining = left
         if left > 0 && left % 5 == 0 {
-            LiveActivityManager.shared.updateTimer(endTime: endTime)
+            LiveActivityManager.shared.updateTimer(endTime: endTime, totalSeconds: total)
         }
     }
 
@@ -212,7 +212,7 @@ struct RestTimerView: View {
         hasFired = false
         recalculate()
         if timer == nil { startTimer() }
-        LiveActivityManager.shared.updateTimer(endTime: endTime)
+        LiveActivityManager.shared.updateTimer(endTime: endTime, totalSeconds: total)
     }
 
     private func cleanup() {

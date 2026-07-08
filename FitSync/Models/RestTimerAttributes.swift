@@ -3,8 +3,8 @@ import Foundation
 
 struct RestTimerAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
+        var startTime: Date
         var endTime: Date
-        var remainingSeconds: Int
     }
 
     var exerciseName: String

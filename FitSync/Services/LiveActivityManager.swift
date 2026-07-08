@@ -1,12 +1,24 @@
 import ActivityKit
 import Foundation
 
-class LiveActivityManager {
+final class LiveActivityManager {
     static let shared = LiveActivityManager()
+
     private var currentActivity: Activity<RestTimerAttributes>?
+    private var currentStartTime: Date?
 
     func startTimer(exerciseName: String, nextExerciseName: String?, mode: String, endTime: Date, totalSeconds: Int) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+
+        if let currentActivity {
+            let now = Date()
+            let contentState = RestTimerAttributes.ContentState(startTime: now, endTime: now)
+            Task {
+                await currentActivity.end(.init(state: contentState, staleDate: nil), dismissalPolicy: .immediate)
+            }
+            self.currentActivity = nil
+            currentStartTime = nil
+        }
         
         let attributes = RestTimerAttributes(
             exerciseName: exerciseName,
@@ -14,12 +26,10 @@ class LiveActivityManager {
             mode: mode,
             totalSeconds: totalSeconds
         )
-        
-        let remaining = max(0, Int(ceil(endTime.timeIntervalSinceNow)))
-        let contentState = RestTimerAttributes.ContentState(
-            endTime: endTime,
-            remainingSeconds: remaining
-        )
+
+        let startTime = endTime.addingTimeInterval(-TimeInterval(max(totalSeconds, 1)))
+        currentStartTime = startTime
+        let contentState = RestTimerAttributes.ContentState(startTime: startTime, endTime: endTime)
         
         do {
             currentActivity = try Activity.request(
@@ -31,14 +41,12 @@ class LiveActivityManager {
         }
     }
 
-    func updateTimer(endTime: Date) {
+    func updateTimer(endTime: Date, totalSeconds: Int? = nil) {
         guard let activity = currentActivity else { return }
-        
-        let remaining = max(0, Int(ceil(endTime.timeIntervalSinceNow)))
-        let contentState = RestTimerAttributes.ContentState(
-            endTime: endTime,
-            remainingSeconds: remaining
-        )
+
+        let startTime = timerStart(endTime: endTime, totalSeconds: totalSeconds ?? activity.attributes.totalSeconds)
+        currentStartTime = startTime
+        let contentState = RestTimerAttributes.ContentState(startTime: startTime, endTime: endTime)
         
         Task {
             await activity.update(.init(state: contentState, staleDate: nil))
@@ -47,15 +55,24 @@ class LiveActivityManager {
 
     func stopTimer() {
         guard let activity = currentActivity else { return }
-        
+
+        let now = Date()
         let contentState = RestTimerAttributes.ContentState(
-            endTime: Date(),
-            remainingSeconds: 0
+            startTime: now,
+            endTime: now
         )
+        currentActivity = nil
+        currentStartTime = nil
         
         Task {
             await activity.end(.init(state: contentState, staleDate: nil), dismissalPolicy: .immediate)
-            currentActivity = nil
         }
+    }
+
+    private func timerStart(endTime: Date, totalSeconds: Int) -> Date {
+        if let currentStartTime {
+            return currentStartTime
+        }
+        return endTime.addingTimeInterval(-TimeInterval(max(totalSeconds, 1)))
     }
 }

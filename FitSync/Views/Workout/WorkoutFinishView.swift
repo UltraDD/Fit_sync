@@ -25,6 +25,9 @@ struct WorkoutFinishView: View {
         if case .failed = githubStep { return true }
         return false
     }
+    private var canReturnToWorkout: Bool {
+        !isSaving && localStep == .idle
+    }
 
     var body: some View {
         ZStack {
@@ -52,6 +55,14 @@ struct WorkoutFinishView: View {
         .navigationTitle("训练总结")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .toolbar {
+            if canReturnToWorkout {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("继续训练") { handleReturnToWorkout() }
+                        .foregroundStyle(FLColor.text60)
+                }
+            }
+        }
         .onAppear {
             if workoutState.exercises.isEmpty && !restored {
                 restored = true
@@ -257,12 +268,20 @@ struct WorkoutFinishView: View {
         homeVM.isEvaluatingState = true
         workoutState.clearSnapshot()
         workoutState.reset()
-        dismiss()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            onDismissToHome?()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                homeVM.isEvaluatingState = false
-            }
+        if let onDismissToHome {
+            onDismissToHome()
+        } else {
+            dismiss()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            homeVM.isEvaluatingState = false
+        }
+    }
+
+    private func handleReturnToWorkout() {
+        guard canReturnToWorkout else { return }
+        if workoutState.resumeAfterFinish() {
+            dismiss()
         }
     }
 }

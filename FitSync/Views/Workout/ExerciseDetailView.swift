@@ -83,6 +83,9 @@ struct ExerciseDetailView: View {
                     }
                 }
                 .onAppear { initializeInputs(exercise) }
+                .onChange(of: exerciseId) { _, _ in
+                    initializeInputs(exercise)
+                }
                 .onReceive(secondTicker) { date in
                     now = date
                 }
@@ -98,22 +101,18 @@ struct ExerciseDetailView: View {
         let isStarted = exercise.startedAt != nil
             || exercise.sets.contains(where: \.completed)
             || (exercise.type == "cardio" && (exercise.cardioData?.duration_minutes ?? 0) > 0)
-        let completedCount = exercise.type == "strength"
-            ? exercise.sets.filter(\.completed).count
-            : ((exercise.cardioData?.duration_minutes ?? 0) > 0 ? 1 : 0)
-        let totalCount = exercise.type == "strength" ? exercise.sets.count : 1
-        let isAllDone = completedCount >= totalCount && totalCount > 0
+        let completedCount = exercise.completedUnits
+        let totalCount = exercise.totalUnits
+        let isAllDone = exercise.isComplete
 
         ZStack {
             AppBackground()
 
             ScrollView {
                 VStack(spacing: 16) {
-                    if exercise.planned {
-                        targetInfoCard(exercise)
-                    }
+                    if exercise.planned { targetInfoCard(exercise) }
 
-                    if isStarted && exercise.type == "strength" && totalCount > 0 {
+                    if isStarted && exercise.isSetBased && totalCount > 0 {
                         progressBar(exercise: exercise, completed: completedCount, total: totalCount)
                     }
 
@@ -150,7 +149,7 @@ struct ExerciseDetailView: View {
                     if exercise.type == "strength" {
                         targetInfoItem(title: "目标重量", value: "\(formatWeight(exercise.targetWeight))", unit: "kg")
                         targetInfoItem(title: "目标组数", value: "\(exercise.targetSets)", unit: "组")
-                        targetInfoItem(title: "目标次数", value: exercise.targetReps, unit: "次")
+                        targetInfoItem(title: "目标次数", value: exercise.targetRepsDisplay, unit: "次")
                     } else if exercise.type == "duration" || exercise.type == "core" {
                         targetInfoItem(title: "目标组数", value: "\(exercise.targetSets)", unit: "组")
                         targetInfoItem(title: "目标时长", value: "\(exercise.targetDurationSeconds ?? 30)", unit: "秒")
@@ -368,13 +367,14 @@ struct ExerciseDetailView: View {
                     Text("目标：\(exercise.targetDurationSeconds ?? 30) 秒")
                         .font(.subheadline).foregroundStyle(FLColor.text40)
                 } else {
-                    Text("目标：\(formatWeight(exercise.targetWeight))kg × \(exercise.targetReps)")
+                    Text("目标：\(formatWeight(exercise.targetWeight))kg × \(exercise.targetRepsWithUnit)")
                         .font(.subheadline).foregroundStyle(FLColor.text40)
                 }
             }
 
             Button {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                prepareInputs(for: exercise, setIndex: setIndex)
                 workoutState.startSet(exerciseId: exerciseId, setIndex: setIndex)
             } label: {
                 HStack(spacing: 8) {
@@ -675,7 +675,7 @@ struct ExerciseDetailView: View {
         guard let exercise else { return }
         let isLastSet = pendingSetIndex == exercise.sets.count - 1
         if !isLastSet {
-            let nextTarget = isDuration ? "\(exercise.targetDurationSeconds ?? 30)秒" : "\(formatWeight(exercise.targetWeight))kg × \(exercise.targetReps)"
+            let nextTarget = isDuration ? "\(exercise.targetDurationSeconds ?? 30)秒" : "\(formatWeight(exercise.targetWeight))kg × \(exercise.targetRepsWithUnit)"
             restConfig = RestConfig(
                 seconds: exercise.restSeconds,
                 setInfo: "第 \(pendingSetIndex + 1)/\(exercise.sets.count) 组完成 · 下一组目标：\(nextTarget)"
@@ -736,10 +736,21 @@ struct ExerciseDetailView: View {
 
     private func initializeInputs(_ exercise: LiveExercise) {
         workoutState.currentExerciseId = exerciseId
-        repsInput = Int(exercise.targetReps.components(separatedBy: "-").last ?? "10") ?? 10
-        durationInput = exercise.targetDurationSeconds ?? 30
-        currentWeight = exercise.targetWeight
+        prepareInputs(for: exercise, setIndex: exercise.sets.firstIndex { !$0.completed })
         exerciseNotes = exercise.exerciseNotes
+    }
+
+    private func prepareInputs(for exercise: LiveExercise, setIndex: Int?) {
+        repsInput = exercise.plannedRepsDefault
+        durationInput = exercise.plannedDurationDefault(forSet: setIndex)
+        currentWeight = exercise.plannedWeightDefault(forSet: setIndex)
+        editingWeight = false
+        editingReps = false
+        editingDuration = false
+        weightText = ""
+        repsText = ""
+        durationText = ""
+        manualInputFocused = false
     }
 
     private func formatWeight(_ w: Double) -> String {

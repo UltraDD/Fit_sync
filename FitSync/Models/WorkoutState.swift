@@ -67,12 +67,60 @@ struct LiveExercise: Codable, Identifiable {
     var startedAt: String?
 
     var completedSets: Int { sets.filter(\.completed).count }
+    var isSetBased: Bool { type == "strength" || type == "duration" || type == "core" }
+    var completedUnits: Int {
+        isSetBased ? completedSets : ((cardioData?.duration_minutes ?? 0) > 0 ? 1 : 0)
+    }
+    var totalUnits: Int { isSetBased ? sets.count : 1 }
 
     var isComplete: Bool {
-        if type == "cardio" {
-            return (cardioData?.duration_minutes ?? 0) > 0
+        completedUnits >= totalUnits && totalUnits > 0
+    }
+
+    var plannedRepsDefault: Int {
+        let normalized = targetReps
+            .replacingOccurrences(of: "－", with: "-")
+            .replacingOccurrences(of: "—", with: "-")
+            .replacingOccurrences(of: "–", with: "-")
+        guard let regex = try? NSRegularExpression(pattern: #"\d+"#) else { return 10 }
+        let range = NSRange(normalized.startIndex..., in: normalized)
+        let matches = regex.matches(in: normalized, range: range)
+        guard let last = matches.last,
+              let matchRange = Range(last.range, in: normalized),
+              let value = Int(normalized[matchRange]) else { return 10 }
+        return max(1, value)
+    }
+
+    var targetRepsDisplay: String {
+        var value = targetReps.trimmingCharacters(in: .whitespacesAndNewlines)
+        var removedSuffix = true
+        while removedSuffix {
+            removedSuffix = false
+            for suffix in ["次", "reps", "rep"] where value.lowercased().hasSuffix(suffix) {
+                value = String(value.dropLast(suffix.count))
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                removedSuffix = true
+            }
         }
-        return completedSets >= sets.count && sets.count > 0
+        return value.isEmpty ? "\(plannedRepsDefault)" : value
+    }
+
+    var targetRepsWithUnit: String {
+        targetRepsDisplay.isEmpty ? "" : "\(targetRepsDisplay)次"
+    }
+
+    func plannedWeightDefault(forSet index: Int? = nil) -> Double {
+        guard let index, sets.indices.contains(index), sets[index].weight_kg > 0 else {
+            return targetWeight
+        }
+        return sets[index].weight_kg
+    }
+
+    func plannedDurationDefault(forSet index: Int? = nil) -> Int {
+        if let index, sets.indices.contains(index), let duration = sets[index].duration_seconds, duration > 0 {
+            return duration
+        }
+        return targetDurationSeconds ?? 30
     }
 }
 
@@ -281,6 +329,7 @@ final class WorkoutState {
             plan: plan,
             exercises: exercises,
             startTime: startTime,
+            startTimestamp: startTimestamp,
             elapsedSeconds: elapsedSeconds,
             currentExerciseId: currentExerciseId,
             exerciseTimes: exerciseTimes,
@@ -299,12 +348,31 @@ final class WorkoutState {
         plan = snapshot.plan
         exercises = snapshot.exercises
         startTime = snapshot.startTime
+        startTimestamp = snapshot.startTimestamp
         elapsedSeconds = snapshot.elapsedSeconds
         currentExerciseId = snapshot.currentExerciseId
         exerciseTimes = snapshot.exerciseTimes
         warmupItems = snapshot.warmupItems
         cooldownItems = snapshot.cooldownItems
         journalText = snapshot.journalText
+        return true
+    }
+
+    @discardableResult
+    func resumeAfterFinish() -> Bool {
+        let restored = restoreFromSnapshot()
+        guard restored || !exercises.isEmpty else { return false }
+        if startTimestamp == nil {
+            startTimestamp = Date().addingTimeInterval(-Double(elapsedSeconds))
+        }
+        if startTime == nil, let startTimestamp {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "HH:mm"
+            startTime = formatter.string(from: startTimestamp)
+        }
+        active = true
+        saveDraft()
+        clearSnapshot()
         return true
     }
 
@@ -494,6 +562,7 @@ struct WorkoutSnapshot: Codable {
     let plan: PlanJSON?
     let exercises: [LiveExercise]
     let startTime: String?
+    let startTimestamp: Date?
     let elapsedSeconds: Int
     let currentExerciseId: String?
     let exerciseTimes: [String: Int]

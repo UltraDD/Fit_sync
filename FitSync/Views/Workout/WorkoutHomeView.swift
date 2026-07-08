@@ -59,7 +59,6 @@ struct WorkoutHomeView: View {
             .sheet(isPresented: $showImportSheet) {
                 importSheet
             }
-            .task { await homeVM.fetchPlan() }
         }
     }
 
@@ -86,20 +85,38 @@ struct WorkoutHomeView: View {
 
             Spacer()
 
-            HStack(spacing: 4) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 8, height: 8)
-                if let sync = homeVM.lastSync {
-                    Text(sync)
-                        .font(.caption2)
-                        .foregroundStyle(FLColor.text40)
-                        .lineLimit(1)
-                        .fixedSize()
-                }
-            }
+            pullPlanButton
         }
         .padding(.bottom, 8)
+    }
+
+    private var pullPlanButton: some View {
+        Button {
+            Task { await homeVM.fetchPlan() }
+        } label: {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 7, height: 7)
+                if homeVM.syncing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.caption.weight(.semibold))
+                }
+                Text("拉取")
+                    .font(.caption.weight(.medium))
+            }
+            .foregroundStyle(homeVM.isConfigured ? FLColor.text60 : FLColor.text30)
+            .frame(height: 36)
+            .padding(.horizontal, 10)
+            .glassEffect(.regular, in: .rect(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+        .disabled(!homeVM.isConfigured || homeVM.syncing)
+        .opacity(!homeVM.isConfigured ? 0.55 : 1)
+        .accessibilityLabel("拉取训练计划")
     }
 
     private var statusColor: Color {
@@ -196,7 +213,7 @@ struct WorkoutHomeView: View {
             } else if homeVM.syncing {
                 VStack(spacing: 8) {
                     ProgressView()
-                    Text("正在同步计划...").font(.subheadline).foregroundStyle(FLColor.text40)
+                    Text("正在拉取计划...").font(.subheadline).foregroundStyle(FLColor.text40)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
@@ -304,10 +321,11 @@ struct WorkoutHomeView: View {
                         .font(.caption)
                         .foregroundStyle(FLColor.text30)
                 }
-                Button("刷新") { Task { await homeVM.fetchPlan() } }
+                Button("拉取计划") { Task { await homeVM.fetchPlan() } }
                     .buttonStyle(SecondaryButtonStyle(fullWidth: false))
+                    .disabled(homeVM.syncing)
             } else {
-                Text("配置 GitHub 后可自动同步 AI 生成的计划")
+                Text("配置 GitHub 后可拉取 AI 生成的计划")
                     .font(.subheadline)
                     .foregroundStyle(FLColor.text30)
                     .multilineTextAlignment(.center)
