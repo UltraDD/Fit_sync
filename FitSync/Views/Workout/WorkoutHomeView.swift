@@ -51,10 +51,11 @@ struct WorkoutHomeView: View {
                     .padding(.top, 12)
                     .padding(.bottom, 40)
                 }
-                .refreshable { await homeVM.fetchPlan() }
             }
             .navigationDestination(isPresented: $navigateToSession) {
-                WorkoutSessionView(workoutState: workoutState, homeVM: homeVM)
+                WorkoutSessionView(workoutState: workoutState, homeVM: homeVM) {
+                    navigateToSession = false
+                }
             }
             .sheet(isPresented: $showImportSheet) {
                 importSheet

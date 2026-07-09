@@ -89,19 +89,27 @@ struct FitSyncWidgetLiveActivity: Widget {
     }
 
     private func progressRing(context: ActivityViewContext<RestTimerAttributes>, size: CGFloat, showIcon: Bool = false) -> some View {
-        ZStack {
-            ProgressView(timerInterval: timerRange(context: context), countsDown: true)
-                .progressViewStyle(.circular)
-                .tint(.green)
-                .labelsHidden()
+        TimelineView(.periodic(from: context.state.startTime, by: 1)) { timeline in
+            ZStack {
+                Circle()
+                    .stroke(Color.green.opacity(0.18), lineWidth: ringLineWidth(for: size))
 
-            if showIcon {
-                Image(systemName: "timer")
-                    .font(.system(size: size * 0.3))
-                    .foregroundStyle(.green)
+                Circle()
+                    .trim(from: 0, to: remainingProgress(context: context, now: timeline.date))
+                    .stroke(
+                        Color.green,
+                        style: StrokeStyle(lineWidth: ringLineWidth(for: size), lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+
+                if showIcon {
+                    Image(systemName: "timer")
+                        .font(.system(size: size * 0.3))
+                        .foregroundStyle(.green)
+                }
             }
+            .frame(width: size, height: size)
         }
-        .frame(width: size, height: size)
     }
 
     private func timerRange(context: ActivityViewContext<RestTimerAttributes>) -> ClosedRange<Date> {
@@ -115,5 +123,15 @@ struct FitSyncWidgetLiveActivity: Widget {
             return next
         }
         return context.attributes.exerciseName
+    }
+
+    private func remainingProgress(context: ActivityViewContext<RestTimerAttributes>, now: Date) -> Double {
+        let total = max(context.state.endTime.timeIntervalSince(context.state.startTime), 1)
+        let remaining = max(context.state.endTime.timeIntervalSince(now), 0)
+        return min(max(remaining / total, 0), 1)
+    }
+
+    private func ringLineWidth(for size: CGFloat) -> CGFloat {
+        max(2, size * 0.11)
     }
 }

@@ -3,6 +3,7 @@ import SwiftUI
 struct WorkoutSessionView: View {
     @Bindable var workoutState: WorkoutState
     var homeVM: HomeViewModel
+    var onDismissToHome: (() -> Void)?
     @State private var showJournal = false
     @State private var showAddExercise = false
     @State private var batchMode = false
@@ -91,10 +92,7 @@ struct WorkoutSessionView: View {
         }
         .navigationDestination(isPresented: $navigateToFinish) {
             WorkoutFinishView(workoutState: workoutState, homeVM: homeVM) {
-                showAddExercise = false
-                showJournal = false
-                showTimerSheet = false
-                dismiss()
+                returnToHomeFromFinish()
             }
         }
         .navigationDestination(isPresented: $navigateToExercise) {
@@ -527,6 +525,20 @@ struct WorkoutSessionView: View {
         workoutState.endWorkout()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             navigateToFinish = true
+        }
+    }
+
+    private func returnToHomeFromFinish() {
+        showAddExercise = false
+        showJournal = false
+        showTimerSheet = false
+        navigateToFinish = false
+        DispatchQueue.main.async {
+            if let onDismissToHome {
+                onDismissToHome()
+            } else {
+                dismiss()
+            }
         }
     }
 

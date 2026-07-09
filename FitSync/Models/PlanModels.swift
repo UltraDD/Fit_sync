@@ -53,13 +53,20 @@ struct PlanExercise: Codable, Identifiable {
         coaching = try container.decodeIfPresent(ExerciseCoaching.self, forKey: .coaching)
     }
 
-    private static func normalizedTargetReps(_ value: String?) -> String? {
+    static func normalizedTargetReps(_ value: String?) -> String? {
         guard var value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
             return nil
         }
 
-        while value.hasSuffix("次") {
-            value = String(value.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
+        let unitSuffixes = ["次", "下", "repetitions", "repetition", "reps", "rep"]
+        var removedSuffix = true
+        while removedSuffix {
+            removedSuffix = false
+            for suffix in unitSuffixes where value.lowercased().hasSuffix(suffix) {
+                value = String(value.dropLast(suffix.count))
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                removedSuffix = true
+            }
         }
 
         return value.isEmpty ? nil : value

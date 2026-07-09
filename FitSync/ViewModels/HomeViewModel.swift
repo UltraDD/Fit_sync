@@ -17,6 +17,16 @@ final class HomeViewModel {
     var isEvaluatingState = false
 
     let githubService = GitHubService()
+    private var syncingInbox = false
+
+    private enum CacheKey {
+        static let plan = "home_cached_plan"
+        static let lastSync = "home_cached_plan_last_sync"
+    }
+
+    init() {
+        loadCachedPlan()
+    }
 
     var githubOwner: String { UserDefaults.standard.string(forKey: "github_owner") ?? "" }
     var githubRepo: String { UserDefaults.standard.string(forKey: "github_repo") ?? "" }
@@ -27,6 +37,7 @@ final class HomeViewModel {
 
     func fetchPlan() async {
         guard isConfigured else { connectionStatus = .noConfig; return }
+        guard !syncing else { return }
         syncing = true
         defer { syncing = false }
 
@@ -41,15 +52,13 @@ final class HomeViewModel {
             return
         }
 
-        // Sync recent results from inbox so local history is up-to-date
-        await syncInboxResults()
-
         do {
             let files = try await githubService.listFiles(owner: githubOwner, repo: githubRepo, token: githubToken, path: outboxPath)
             let jsonFiles = files.filter { $0.name.hasSuffix(".json") }.sorted { $0.name > $1.name }
             guard let latest = jsonFiles.first else {
                 plan = nil
                 planCompleted = false
+                clearCachedPlan()
                 return
             }
 
@@ -67,6 +76,11 @@ final class HomeViewModel {
         let timeFmt = DateFormatter()
         timeFmt.dateFormat = "HH:mm"
         lastSync = timeFmt.string(from: Date())
+        if let plan {
+            saveCachedPlan(plan)
+        }
+
+        Task { await syncInboxResultsAfterPlanPull() }
     }
 
     func importPlan(json: String) throws -> PlanJSON {
@@ -76,6 +90,8 @@ final class HomeViewModel {
             throw NSError(domain: "FitSync", code: 1, userInfo: [NSLocalizedDescriptionKey: "无效格式：schema 不匹配"])
         }
         plan = decoded
+        checkPlanCompleted(decoded)
+        saveCachedPlan(decoded)
         return decoded
     }
 
@@ -91,7 +107,42 @@ final class HomeViewModel {
         }
     }
 
+    private func loadCachedPlan() {
+        guard let data = UserDefaults.standard.data(forKey: CacheKey.plan),
+              let cached = try? JSONDecoder().decode(PlanJSON.self, from: data),
+              cached.schema == "my_life.fitness.plan" else { return }
+
+        plan = cached
+        lastSync = UserDefaults.standard.string(forKey: CacheKey.lastSync)
+        connectionStatus = isConfigured ? .connected : .noConfig
+        checkPlanCompleted(cached)
+    }
+
+    private func saveCachedPlan(_ plan: PlanJSON) {
+        guard let data = try? JSONEncoder().encode(plan) else { return }
+        UserDefaults.standard.set(data, forKey: CacheKey.plan)
+        if let lastSync {
+            UserDefaults.standard.set(lastSync, forKey: CacheKey.lastSync)
+        } else {
+            UserDefaults.standard.removeObject(forKey: CacheKey.lastSync)
+        }
+    }
+
+    private func clearCachedPlan() {
+        UserDefaults.standard.removeObject(forKey: CacheKey.plan)
+        UserDefaults.standard.removeObject(forKey: CacheKey.lastSync)
+    }
+
     /// Auto-import recent results from GitHub inbox into local WorkoutStore.
+    private func syncInboxResultsAfterPlanPull() async {
+        guard !syncingInbox else { return }
+        syncingInbox = true
+        defer { syncingInbox = false }
+
+        await syncInboxResults()
+        recheckPlanCompleted()
+    }
+
     private func syncInboxResults() async {
         do {
             let files = try await githubService.listFiles(
