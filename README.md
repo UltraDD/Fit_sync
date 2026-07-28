@@ -35,7 +35,7 @@ GitHub sync is optional. Configure a repository and token in the app settings; n
 | `FitSync/` | Main SwiftUI app, models, services, view models, and views |
 | `FitSyncWidget/` | WidgetKit and Live Activity extension |
 | `FitSync.xcodeproj/` | Xcode project configuration |
-| `REVIEW_LOG.md` | Historical engineering review notes |
+| `docs/REVIEW_LOG.md` | Historical engineering review notes |
 
 ## Privacy
 
