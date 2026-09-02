@@ -302,7 +302,7 @@ struct WorkoutSessionView: View {
                         Text("\(completedCount)/\(totalCount) 组")
                             .font(.caption).foregroundStyle(FLColor.text40)
                         if maxW > 0 {
-                            Text("最大 \(maxW.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", maxW) : String(format: "%.1f", maxW))kg")
+                            Text("最大 \(WeightFormatter.string(from: maxW))kg")
                                 .font(.caption).foregroundStyle(FLColor.text40)
                         }
                     } else {

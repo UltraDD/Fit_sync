@@ -80,7 +80,7 @@ struct WorkoutFinishView: View {
             statItem("\(workoutState.exercises.count)", label: "动作")
             statItem("\(totalSets)", label: "组")
             if maxWeight > 0 {
-                statItem(String(format: "%.0f", maxWeight), label: "kg 最大")
+                statItem(WeightFormatter.string(from: maxWeight), label: "kg 最大")
             }
         }
         .glassCard(padding: 24)

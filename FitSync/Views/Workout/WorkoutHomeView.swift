@@ -249,7 +249,7 @@ struct WorkoutHomeView: View {
                     completedStat("\(result.exercises.count)", label: "动作")
                     completedStat("\(sets)", label: "组")
                     if mw > 0 {
-                        completedStat(String(format: "%.0f", mw), label: "kg")
+                        completedStat(WeightFormatter.string(from: mw), label: "kg")
                     }
                 }
 

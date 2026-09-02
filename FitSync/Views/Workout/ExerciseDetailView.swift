@@ -447,11 +447,11 @@ struct ExerciseDetailView: View {
                             if !focused { commitWeightEdit() }
                         }
                 } else {
-                    Text(String(format: "%.0f", currentWeight))
+                    Text(WeightFormatter.string(from: currentWeight))
                         .font(.system(size: 36, weight: .bold))
                         .monospacedDigit()
                         .onTapGesture {
-                            weightText = String(format: "%.0f", currentWeight)
+                            weightText = WeightFormatter.string(from: currentWeight)
                             editingWeight = true
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                 manualInputFocused = true
@@ -754,7 +754,7 @@ struct ExerciseDetailView: View {
     }
 
     private func formatWeight(_ w: Double) -> String {
-        w.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", w) : String(format: "%.1f", w)
+        WeightFormatter.string(from: w)
     }
 
     private func elapsedSeconds(from isoString: String?) -> Int {

@@ -182,7 +182,7 @@ struct RestTimerView: View {
     }
 
     private func formatWeight(_ w: Double) -> String {
-        w.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", w) : String(format: "%.1f", w)
+        WeightFormatter.string(from: w)
     }
 
     private func startTimer() {
